@@ -62,3 +62,5 @@ devel/*.html
 docs/tutorials/cache/
 docs/autoapi/
 VERSION
+*.png
+*.csv
