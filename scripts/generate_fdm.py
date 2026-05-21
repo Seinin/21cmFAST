@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 """
-generate.py - 21cmFAST 功率谱随红移演化生成工具
+generate_fdm.py - 21cmFAST FDM (Fuzzy Dark Matter) 功率谱随红移演化生成工具
 
-使用 template='simple' 快速运行21cmFAST模拟，计算不同红移下的功率谱。
-
-simple 模板关闭了 USE_EXP_FILTER, CELL_RECOMB, USE_MINI_HALOS, USE_TS_FLUCT, INHOMO_RECO 等
-复杂特性，仅保留基本的再电离物理，运行速度更快。
+与 generate.py 功能一致，但额外引入 M_TURN 参数模拟模糊暗物质的效应。
+M_TURN 是临界质量 (log10(Msun))，低于此质量的 halo 会受到 FDM 的抑制。
 
 Usage:
-    python generate.py
-    python generate.py --seed 123
+    python generate_fdm.py
+    python generate_fdm.py --seed 123
 """
 
 import logging
@@ -33,11 +31,11 @@ logger.setLevel(logging.INFO)
 # 配置加载
 # ============================================================================
 
-CONFIG_PATH = Path(__file__).parent / 'config.yaml'
+CONFIG_PATH = Path(__file__).parent / 'config_fdm.yaml'
 
 
 def load_config() -> dict:
-    """从 config.yaml 加载配置"""
+    """从 config_fdm.yaml 加载配置"""
     with open(CONFIG_PATH, 'r') as f:
         config = yaml.safe_load(f)
     print(f"已从 {CONFIG_PATH} 加载配置")
@@ -55,7 +53,7 @@ def _compute_power_spectrum(brightness_temp: np.ndarray,
                             k_max: float = 10.0) -> tuple:
     """
     计算21cm无量纲功率谱 Δ²₂₁(k)
-    
+
     Δ²(k) = k³/(2π²) × P(k)
     """
     N = brightness_temp.shape[0]
@@ -91,10 +89,11 @@ def _compute_power_spectrum(brightness_temp: np.ndarray,
 
 def run_simulation(config: dict, seed: int = None) -> dict:
     """
-    使用模板运行单组参数的21cmFAST模拟。
-    
-    模板从 config.yaml 的 template 字段指定（默认 'simple'）。
-    天体物理参数 (astro_params) 和模拟参数 (simulation) 从配置中覆盖模板默认值。
+    使用模板运行单组参数的21cmFAST FDM模拟。
+
+    FDM 与 CDM 的核心区别在于 AstroParams 中包含了 M_TURN 参数：
+    M_TURN 为转折质量 (log10(Msun))，抑制小质量晕中的恒星形成，
+    模拟模糊暗物质 (FDM) 对宇宙大尺度结构的效应。
     """
     sim = config['simulation']
     astro = config.get('astro_params', {})
@@ -113,10 +112,10 @@ def run_simulation(config: dict, seed: int = None) -> dict:
     BOX_LEN = sim['BOX_LEN']
 
     print(f"\n{'='*60}")
-    print(f"运行21cmFAST模拟  (template: {template_name})")
+    print(f"运行21cmFAST FDM模拟  (template: {template_name})")
     print(f"{'='*60}")
     print(f"网格: {HII_DIM}³, 盒子大小: {BOX_LEN} Mpc")
-    print(f"天体物理参数:")
+    print(f"天体物理参数 (含FDM):")
     for key, val in astro.items():
         print(f"  {key} = {val}")
     print(f"红移: {z_min} → {z_max} (共{n_redshift}个点)")
@@ -125,19 +124,11 @@ def run_simulation(config: dict, seed: int = None) -> dict:
 
     # ---------- 使用模板创建参数 ----------
     # InputParameters.from_template() 一步加载模板并用配置文件值覆盖
-    # simple 模板的效果：
-    #   - USE_EXP_FILTER = False
-    #   - CELL_RECOMB = False
-    #   - USE_MINI_HALOS = False
-    #   - USE_TS_FLUCT = False
-    #   - INHOMO_RECO = False
-    #   - HII_FILTER = 'sharp-k'
-
     inputs = p21c.InputParameters.from_template(
         template_name,
         BOX_LEN=BOX_LEN,
         HII_DIM=HII_DIM,
-        **astro,                # 天体物理参数覆盖
+        **astro,                # 天体物理参数覆盖 (包含 M_TURN)
         random_seed=seed,
     )
 
@@ -212,7 +203,7 @@ def plot_power_spectrum_evolution(results: dict, config: dict, output_dir: str =
 
     ax.set_xlabel('Redshift z', fontsize=12)
     ax.set_ylabel('Δ²₂₁(k)', fontsize=12)
-    ax.set_title('Power Spectrum vs Redshift', fontsize=13)
+    ax.set_title('FDM Power Spectrum vs Redshift', fontsize=13)
     ax.legend(fontsize=10)
     ax.grid(True, alpha=0.3)
 
@@ -233,13 +224,13 @@ def plot_power_spectrum_evolution(results: dict, config: dict, output_dir: str =
 
     ax.set_xlabel('k [Mpc⁻¹]', fontsize=12)
     ax.set_ylabel('Δ²₂₁(k)', fontsize=12)
-    ax.set_title('Power Spectrum at Selected Redshifts', fontsize=13)
+    ax.set_title('FDM Power Spectrum at Selected Redshifts', fontsize=13)
     ax.legend(fontsize=10)
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
 
-    plot_path = os.path.join(output_dir, 'power_spectrum_vs_redshift.png')
+    plot_path = os.path.join(output_dir, 'power_spectrum_fdm_vs_redshift.png')
     fig.savefig(plot_path, dpi=150, bbox_inches='tight')
     print(f"\n图像已保存: {plot_path}")
 
@@ -254,7 +245,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='21cmFAST 功率谱随红移演化生成工具'
+        description='21cmFAST FDM 功率谱随红移演化生成工具'
     )
     parser.add_argument(
         '--seed', type=int, default=None,
@@ -271,13 +262,13 @@ if __name__ == '__main__':
 
     if args.show_config:
         print("\n" + "=" * 60)
-        print("当前配置 (config.yaml)")
+        print("当前配置 (config_fdm.yaml)")
         print("=" * 60)
         print(f"\n模板: {config.get('template', 'simple')}")
         print(f"\n模拟配置:")
         for key, val in config['simulation'].items():
             print(f"  {key}: {val}")
-        print(f"\n天体物理参数:")
+        print(f"\n天体物理参数 (含FDM):")
         for key, val in config['astro_params'].items():
             print(f"  {key}: {val}")
         exit(0)
