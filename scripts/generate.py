@@ -50,39 +50,54 @@ def load_config() -> dict:
 
 def _compute_power_spectrum(brightness_temp: np.ndarray,
                             box_len: float,
-                            n_bins: int = 256,
+                            n_bins: int = 50,
                             k_min: float = 0.01,
                             k_max: float = 10.0) -> tuple:
     """
     计算21cm无量纲功率谱 Δ²₂₁(k)
-    
-    Δ²(k) = k³/(2π²) × P(k)
+
+    方法：先按离散 FFT 网格的自然 |k| 壳层平均 3D 功率谱 P(k)，
+    再转换为 Δ²(k) = k³/(2π²) · P(k)。直接在壳层尺度上返回结果，
+    避免对数 bin 过窄导致的 NaN。
+    k_min/k_max 自动钳制到 [k_fund*1.05, k_nyq*0.8] 区间。
+    n_bins 参数保留用于调用兼容，内部不使用。
     """
     N = brightness_temp.shape[0]
     cell_size = box_len / N
 
+    # --- 建立 k 网格 ---
     k = np.fft.fftfreq(N, d=cell_size) * 2 * np.pi
     k[N // 2] = 0
-
     kx, ky, kz = np.meshgrid(k, k, k, indexing='ij')
     k_mag = np.sqrt(kx**2 + ky**2 + kz**2)
 
+    # --- FFT 和 3D 功率谱 ---
     fft_bt = np.fft.fftn(brightness_temp)
     ps3d = np.abs(fft_bt)**2 / (N**6) * box_len**3
 
-    k_edges = np.logspace(np.log10(k_min), np.log10(k_max), n_bins + 1)
-    k_centers = 10**(0.5 * (np.log10(k_edges[:-1]) + np.log10(k_edges[1:])))
+    # --- 钳制 k 范围到物理有效区间 ---
+    k_fund = 2 * np.pi / box_len          # k_min 不低于基频
+    k_nyq = np.pi / cell_size             # k_max 不高于 Nyquist
+    k_min = max(k_min, k_fund * 1.05)
+    k_max = min(k_max, k_nyq * 0.8)
 
-    pk1d = np.zeros(n_bins)
-    for i in range(n_bins):
-        mask = (k_mag >= k_edges[i]) & (k_mag < k_edges[i + 1]) & (k_mag > 0)
-        if np.sum(mask) > 0:
-            pk1d[i] = np.mean(ps3d[mask])
-        else:
-            pk1d[i] = np.nan
+    # --- 壳层平均：按 |k| 分组，每个壳层独立计算 mean ---
+    # 将 |k| 四舍五入到 6 位小数，合并近简并的离散模式
+    k_rounded = np.round(k_mag, 6)
+    unique_k_vals = np.unique(k_rounded[k_rounded > 0])
+    shell_power = np.array([np.mean(ps3d[k_rounded == uk]) for uk in unique_k_vals])
 
-    delta_squared = (k_centers**3 / (2 * np.pi**2)) * pk1d
-    return k_centers, delta_squared
+    # 裁剪到 [k_min, k_max]
+    shell_mask = (unique_k_vals >= k_min) & (unique_k_vals <= k_max)
+    shell_k = unique_k_vals[shell_mask]
+    shell_p = shell_power[shell_mask]
+
+    # --- 按壳层返回功率谱 ---
+    # 离散 FFT 网格的自然壳层间距不均匀（低 k 稀疏，高 k 密集），
+    # 对数 binning 在低 k 端过窄，必然产生空 bin。
+    # 正确做法：直接在壳层尺度上返回 Δ²(k)，不做再 binning。
+    delta_squared = (shell_k**3 / (2 * np.pi**2)) * shell_p
+    return shell_k, delta_squared
 
 
 # ============================================================================
@@ -164,14 +179,14 @@ def run_simulation(config: dict, seed: int = None) -> dict:
             k_min=sim.get('k_min', 0.01),
             k_max=sim.get('k_max', 10.0),
         )
-
+        
         if results['k_values'] is None:
-            results['k_values'] = k
+            results['k_values'] = k #k是一个数组，在compute函数确定时就已经确定
         results['redshifts'].append(coeval.redshift)
         results['power_spectra'].append(delta_squared)
         results['brightness_temp_mean'].append(float(np.mean(bt)))
         print(f"  z = {coeval.redshift:6.2f}  |  <δTb> = {results['brightness_temp_mean'][-1]:8.2f} mK")
-
+    print(results['power_spectra'])
     print(f"\n模拟完成! 成功处理 {len(results['redshifts'])}/{n_redshift} 个红移点")
     return results
 

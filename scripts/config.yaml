@@ -2,9 +2,6 @@
 # 21cmFAST 功率谱演化配置文件
 # ============================================================================
 
-# 使用模板名称 (simple / latest / minihalos / park19 等)
-# simple 模板关闭了 USE_EXP_FILTER, CELL_RECOMB, USE_MINI_HALOS 等复杂特性
-template: simple
 
 simulation:
   # --- 网格参数 ---
@@ -12,11 +9,11 @@ simulation:
   BOX_LEN: 200.0            # 盒子边长 (Mpc)
 
   # --- 随机种子 ---
-  random_seed: 42
+  random_seed: 1234
 
   # --- 功率谱计算参数 ---
   n_k_bins: 256
-  k_min: 0.01
+  k_min: 0.03
   k_max: 10.0
 
   # --- 红移范围 ---

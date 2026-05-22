@@ -9,7 +9,7 @@ simulation:
   BOX_LEN: 200.0
   random_seed: 42
   n_k_bins: 256
-  k_min: 0.01
+  k_min: 0.03
   k_max: 10.0
   z_min: 5.0
   z_max: 25.0
