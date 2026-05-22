@@ -33,7 +33,7 @@ from scipy.stats.qmc import LatinHypercube
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from _common import _compute_power_spectrum, rebin_power_spectrum, run_simulation
+from _common import rebin_power_spectrum, run_simulation
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "data"
 OUTPUT_DIR.mkdir(exist_ok=True)
