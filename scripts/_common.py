@@ -8,8 +8,14 @@ _common.py - generate.py 和 generate_fdm.py 的共享函数库
 
 import logging
 import os
+import sys
 import warnings
 from pathlib import Path
+
+# 确保使用本地的 py21cmfast，而非系统安装的旧版
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,7 +23,7 @@ import yaml
 
 import py21cmfast as p21c
 
-warnings.filterwarnings("ignore")
+# warnings are NOT suppressed — let them surface for debugging
 
 logger = logging.getLogger("py21cmfast")
 logger.setLevel(logging.INFO)

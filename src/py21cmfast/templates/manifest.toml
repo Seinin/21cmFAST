@@ -12,6 +12,12 @@ file = "simple.toml"
 aliases = ["simple"]
 description = "A simple 21cmFAST run with no minihalos, discrete halos, recombinations or spin temperature fluctuations"
 
+[[templates]]
+name = "planck2020"
+file = "planck2020.toml"
+aliases = ["planck2020", "Planck20", "Planck2020"]
+description = "Flat ΛCDM with Planck 2020 cosmology: (ΩΛ,Ωm,Ωb,h,σ8,ns)=(0.69,0.31,0.049,0.68,0.82,0.97)"
+
 
 [[templates]]
 name = "const-zeta"
