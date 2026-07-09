@@ -78,7 +78,5 @@ cdm_samples/
 # --- misc ---
 py21cmfast/
 scripts/test.py
+train/
 traintest/
-train/data/
-train/checkpoints/
-train/plots/
