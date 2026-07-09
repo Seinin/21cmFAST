@@ -132,3 +132,16 @@ double unconditional_hmf(double growthf, double lnM, double z, int HMF);
 double conditional_hmf(double growthf, double lnM, double delta, double sigma, int HMF);
 double expected_nhalo(double redshift);
 /*-----------------------*/
+
+/* Sigma interpolation table access (avoids re-init with M_MIN_INTEGRAL) */
+double EvaluateSigma(double lnM);
+double EvaluatedSigmasqdm(double lnM);
+/*-----------------------*/
+
+/* FDM physics functions */
+double T_F(double k);
+double dndm_FDM(double M);
+double sigma_z0_pre(double M);
+double dsigmasqdm_z0_pre(double M);
+double power_in_k_cdm(double k);
+/*-----------------------*/

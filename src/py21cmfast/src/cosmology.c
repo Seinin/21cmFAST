@@ -15,6 +15,7 @@
 #include "InputParameters.h"
 #include "cexcept.h"
 #include "exceptions.h"
+#include "fdm.h"
 #include "filtering.h"
 #include "logger.h"
 
@@ -293,6 +294,39 @@ double power_in_k(double k) {
             p *= 1.0 - A_VCB_PM * exp(-pow(log(k / KP_VCB_PM), 2.0) /
                                       (2.0 * SIGMAK_VCB_PM * SIGMAK_VCB_PM));
         }
+        // FDM: multiply by T_F(k)^2 transfer function cutoff
+        if (matter_options_global->FDM) {
+            p *= T_F(k) * T_F(k);
+        }
+        return p;
+    }
+}
+
+/*
+    Same as power_in_k(), but always returns the CDM power spectrum
+    (never applies the FDM T_F(k) transfer function cutoff).
+    Used by sigma_z0_pre() to compute CDM-reference sigma(M).
+*/
+double power_in_k_cdm(double k) {
+    double p, T, primordial;
+
+    if (k == 0.) {
+        return 0.;
+    } else {
+        T = transfer_function(k);
+        if (matter_options_global->POWER_SPECTRUM < 5) {
+            T *= k * k;
+        }
+
+        primordial = primordial_curvature_power_spectrum(k);
+        p = cosmo_consts.sigma_norm * primordial * T * T / pow(k, 3);
+
+        if (matter_options_global->POWER_SPECTRUM == 5 &&
+            matter_options_global->USE_RELATIVE_VELOCITIES) {
+            p *= 1.0 - A_VCB_PM * exp(-pow(log(k / KP_VCB_PM), 2.0) /
+                                      (2.0 * SIGMAK_VCB_PM * SIGMAK_VCB_PM));
+        }
+        // NOTE: no T_F(k) factor here -- this is the CDM reference
         return p;
     }
 }

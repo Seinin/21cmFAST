@@ -15,6 +15,7 @@
 #include "cexcept.h"
 #include "cosmology.h"
 #include "exceptions.h"
+#include "fdm.h"
 #include "interp_tables.h"
 #include "logger.h"
 #include "scaling_relations.h"
@@ -479,24 +480,26 @@ double c_xray_integrand(double lnM, void *param_struct) {
 double unconditional_hmf(double growthf, double lnM, double z, int HMF) {
     // most of the UMFs are defined with M, but we integrate over lnM
     // NOTE: HMF > 4 or < 0 gets caught earlier, so unless some strange change is made this is fine
+    double result;
     if (HMF == 0) {
-        return dNdlnM_PS(growthf, lnM);
-    }
-    if (HMF == 1) {
-        return dNdlnM_st(growthf, lnM);
-    }
-    if (HMF == 2) {
-        return dNdlnM_WatsonFOF(growthf, lnM);
-    }
-    if (HMF == 3) {
-        return dNdlnM_WatsonFOF_z(z, growthf, lnM);
-    }
-    if (HMF == 4) {
-        return dNdlnM_Delos(growthf, lnM);
+        result = dNdlnM_PS(growthf, lnM);
+    } else if (HMF == 1) {
+        result = dNdlnM_st(growthf, lnM);
+    } else if (HMF == 2) {
+        result = dNdlnM_WatsonFOF(growthf, lnM);
+    } else if (HMF == 3) {
+        result = dNdlnM_WatsonFOF_z(z, growthf, lnM);
+    } else if (HMF == 4) {
+        result = dNdlnM_Delos(growthf, lnM);
     } else {
         LOG_ERROR("Invalid HMF %d", HMF);
         Throw(ValueError);
     }
+    // FDM: apply Schive+2016 HMF suppression factor
+    if (matter_options_global->FDM) {
+        result *= dndm_FDM(exp(lnM));
+    }
+    return result;
 }
 
 double u_mf_integrand(double lnM, void *param_struct) {

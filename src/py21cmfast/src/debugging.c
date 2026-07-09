@@ -91,11 +91,13 @@ void writeMatterOptions(MatterOptions *p) {
         "       HALO_FILTER=%2d\n"
         "       SOURCE_MODEL=%2d\n"
         "       SMOOTH_EVOLVED_DENSITY_FIELD=%1d\n"
-        "       DEXM_OPTIMIZE=%1d\n",
+        "       DEXM_OPTIMIZE=%1d\n"
+        "       FDM=%1d\n"
+        "       HMF_FINDEX=%8.3f\n",
         p->HMF, p->POWER_SPECTRUM, p->USE_RELATIVE_VELOCITIES, p->PERTURB_ON_HIGH_RES,
         p->USE_FFTW_WISDOM, p->USE_INTERPOLATION_TABLES, p->PERTURB_ALGORITHM, p->MINIMIZE_MEMORY,
         p->KEEP_3D_VELOCITIES, p->SAMPLE_METHOD, p->FILTER, p->HALO_FILTER, p->SOURCE_MODEL,
-        p->SMOOTH_EVOLVED_DENSITY_FIELD, p->DEXM_OPTIMIZE);
+        p->SMOOTH_EVOLVED_DENSITY_FIELD, p->DEXM_OPTIMIZE, p->FDM, p->HMF_FINDEX);
 }
 
 void writeCosmoParams(CosmoParams *p) {
@@ -111,9 +113,10 @@ void writeCosmoParams(CosmoParams *p) {
         "       OMtot=%8.3f\n"
         "       Y_He=%8.3f\n"
         "       wl=%8.3f\n"
-        "       POWER_INDEX=%8.3f\n",
+        "       POWER_INDEX=%8.3f\n"
+        "       m22=%8.3f\n",
         p->hlittle, p->OMm, p->OMl, p->OMb, p->OMn, p->OMk, p->OMr, p->OMtot, p->Y_He, p->wl,
-        p->POWER_INDEX);
+        p->POWER_INDEX, p->m22);
 }
 
 void writeAstroParams(AstroParams *p) {

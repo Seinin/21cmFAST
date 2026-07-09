@@ -452,6 +452,9 @@ class CosmoParams(InputStruct):
     Y_He: float = field(default=0.24, converter=float, validator=validators.ge(0))
     wl: float = field(default=-1.0, converter=float)
 
+    # FDM: Fuzzy Dark Matter particle mass in units of 10^-22 eV
+    m22: float = field(default=1.6, converter=float, validator=validators.gt(0))
+
     # TODO: Combined validation via Astropy?
 
     @_SIGMA_8.validator
@@ -679,6 +682,11 @@ class MatterOptions(InputStruct):
     SOURCE_MODEL: Literal[
         "CONST-ION-EFF", "E-INTEGRAL", "L-INTEGRAL", "DEXM-ESF", "CHMF-SAMPLER"
     ] = choice_field(default="CHMF-SAMPLER")
+
+    # FDM: Enable Fuzzy Dark Matter physics (default False -> CDM)
+    FDM: bool = field(default=False, converter=bool)
+    # FDM HMF suppression index (Schive+2016, Table 1)
+    HMF_FINDEX: float = field(default=-1.1, converter=float)
 
     @POWER_SPECTRUM.default
     def _ps_default(self):

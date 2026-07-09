@@ -19,6 +19,7 @@
 #include "cexcept.h"
 #include "cosmology.h"
 #include "exceptions.h"
+#include "fdm.h"
 #include "hmf.h"
 #include "interpolation.h"
 #include "logger.h"
@@ -87,6 +88,15 @@ static RGTable1D_f Sigma_InterpTable = {
     .allocated = false,
 };
 static RGTable1D_f dSigmasqdm_InterpTable = {
+    .allocated = false,
+};
+
+// FDM: CDM-reference sigma interpolation table (no FDM T_F cutoff)
+static RGTable1D_f Sigma_InterpTable_CDM = {
+    .allocated = false,
+};
+// FDM: CDM-reference dsigma^2/dM interpolation table (no FDM T_F cutoff)
+static RGTable1D_f dSigmasqdm_InterpTable_CDM = {
     .allocated = false,
 };
 
@@ -1136,11 +1146,24 @@ void initialiseSigmaMInterpTable(float M_min, float M_max) {
     if (!Sigma_InterpTable.allocated) allocate_RGTable1D_f(N_MASS_INTERP, &Sigma_InterpTable);
     if (!dSigmasqdm_InterpTable.allocated)
         allocate_RGTable1D_f(N_MASS_INTERP, &dSigmasqdm_InterpTable);
+    // FDM: allocate CDM-reference sigma and dsigmadm tables
+    if (matter_options_global->FDM) {
+        if (!Sigma_InterpTable_CDM.allocated)
+            allocate_RGTable1D_f(N_MASS_INTERP, &Sigma_InterpTable_CDM);
+        if (!dSigmasqdm_InterpTable_CDM.allocated)
+            allocate_RGTable1D_f(N_MASS_INTERP, &dSigmasqdm_InterpTable_CDM);
+    }
 
     Sigma_InterpTable.x_min = log(M_min);
     Sigma_InterpTable.x_width = (log(M_max) - log(M_min)) / (N_MASS_INTERP - 1.);
     dSigmasqdm_InterpTable.x_min = log(M_min);
     dSigmasqdm_InterpTable.x_width = (log(M_max) - log(M_min)) / (N_MASS_INTERP - 1.);
+    if (matter_options_global->FDM) {
+        Sigma_InterpTable_CDM.x_min = log(M_min);
+        Sigma_InterpTable_CDM.x_width = (log(M_max) - log(M_min)) / (N_MASS_INTERP - 1.);
+        dSigmasqdm_InterpTable_CDM.x_min = log(M_min);
+        dSigmasqdm_InterpTable_CDM.x_width = (log(M_max) - log(M_min)) / (N_MASS_INTERP - 1.);
+    }
 
 #pragma omp parallel private(i) num_threads(simulation_options_global -> N_THREADS)
     {
@@ -1150,6 +1173,11 @@ void initialiseSigmaMInterpTable(float M_min, float M_max) {
             Mass = exp(Sigma_InterpTable.x_min + i * Sigma_InterpTable.x_width);
             Sigma_InterpTable.y_arr[i] = sigma_z0(Mass);
             dSigmasqdm_InterpTable.y_arr[i] = log10(-dsigmasqdm_z0(Mass));
+            // FDM: build CDM-reference σ and dsigmadm tables in parallel
+            if (matter_options_global->FDM) {
+                Sigma_InterpTable_CDM.y_arr[i] = sigma_z0_pre(Mass);
+                dSigmasqdm_InterpTable_CDM.y_arr[i] = log10(-dsigmasqdm_z0_pre(Mass));
+            }
         }
     }
 
@@ -1159,26 +1187,45 @@ void initialiseSigmaMInterpTable(float M_min, float M_max) {
             LOG_ERROR("Detected either an infinite or NaN value in initialiseSigmaMInterpTable");
             Throw(TableGenerationError);
         }
+        if (matter_options_global->FDM &&
+            (isfinite(Sigma_InterpTable_CDM.y_arr[i]) == 0 ||
+             isfinite(dSigmasqdm_InterpTable_CDM.y_arr[i]) == 0)) {
+            LOG_ERROR("Detected either an infinite or NaN value in CDM interp tables");
+            Throw(TableGenerationError);
+        }
     }
 }
 
 void freeSigmaMInterpTable() {
     free_RGTable1D_f(&Sigma_InterpTable);
     free_RGTable1D_f(&dSigmasqdm_InterpTable);
+    free_RGTable1D_f(&Sigma_InterpTable_CDM);
+    free_RGTable1D_f(&dSigmasqdm_InterpTable_CDM);
 }
 
 double EvaluateSigma(double lnM) {
     // using log units to make the fast option faster and the slow option slower
     if (matter_options_global->USE_INTERPOLATION_TABLES > 0) {
+        // FDM: use CDM-reference sigma table (no T_F cutoff) for HMF calculations
+        if (matter_options_global->FDM)
+            return EvaluateRGTable1D_f(lnM, &Sigma_InterpTable_CDM);
         return EvaluateRGTable1D_f(lnM, &Sigma_InterpTable);
     }
+    if (matter_options_global->FDM)
+        return sigma_z0_pre(exp(lnM));
     return sigma_z0(exp(lnM));
 }
 
 double EvaluatedSigmasqdm(double lnM) {
     // this may be slow, figure out why the dsigmadm table is in log10
     if (matter_options_global->USE_INTERPOLATION_TABLES > 0) {
+        // FDM: use CDM-reference dsigmadm table for HMF calculations
+        if (matter_options_global->FDM)
+            return -pow(10., EvaluateRGTable1D_f(lnM, &dSigmasqdm_InterpTable_CDM));
         return -pow(10., EvaluateRGTable1D_f(lnM, &dSigmasqdm_InterpTable));
     }
+    // FDM: use CDM-reference dsigmadm for HMF calculations
+    if (matter_options_global->FDM)
+        return dsigmasqdm_z0_pre(exp(lnM));
     return dsigmasqdm_z0(exp(lnM));
 }

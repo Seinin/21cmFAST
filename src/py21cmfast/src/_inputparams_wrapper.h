@@ -18,6 +18,8 @@ typedef struct CosmoParams {
     float Y_He;
     float wl;
 
+    // FDM parameters
+    float m22;  // FDM particle mass in units of 10^-22 eV
 } CosmoParams;
 
 typedef struct SimulationOptions {
@@ -71,6 +73,10 @@ typedef struct MatterOptions {
 
     int SOURCE_MODEL;
     int SAMPLE_METHOD;
+
+    // FDM options
+    bool FDM;             // Enable Fuzzy Dark Matter physics
+    float HMF_FINDEX;     // HMF suppression index for FDM (Schive+2016)
 } MatterOptions;
 
 typedef struct AstroParams {

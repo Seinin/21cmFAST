@@ -84,3 +84,9 @@ void random_point_in_cell(int idx[3], double cell_len, gsl_rng *rng, double *poi
     point[2] = (idx[2] + randbuf) * cell_len;
     return;
 }
+
+void resample_index(int idx_in[3], double dim_ratio, int idx_out[3]) {
+    idx_out[0] = (int)(idx_in[0] * dim_ratio + 0.5);
+    idx_out[1] = (int)(idx_in[1] * dim_ratio + 0.5);
+    idx_out[2] = (int)(idx_in[2] * dim_ratio + 0.5);
+}

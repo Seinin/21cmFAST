@@ -78,25 +78,25 @@ void random_point_in_sphere(double centre[3], double radius, gsl_rng *rng, doubl
 void random_point_in_cell(int idx[3], double cell_len, gsl_rng *rng, double *point);
 
 // Indexing a 3D array stored in a 1D array
-inline unsigned long long grid_index_general(int x, int y, int z, int dim[3]) {
+static inline unsigned long long grid_index_general(int x, int y, int z, int dim[3]) {
     return (z) + (dim[2] + 0llu) * (y + (dim[1] + 0llu) * x);
 }
 
 // Indexing a 3D array stored in a 1D array, where the 3D array is the real-space
 // representation of a Fourier Transform (with padding on the last axis)
-inline unsigned long long grid_index_fftw_r(int x, int y, int z, int dim[3]) {
+static inline unsigned long long grid_index_fftw_r(int x, int y, int z, int dim[3]) {
     return (z) + 2llu * (dim[2] / 2 + 1llu) * (y + (dim[1] + 0llu) * x);
 }
 
 // Indexing a 3D array stored in a 1D array, where the 3D array is the complex-space
 // representation of a Fourier Transform (with padding on the last axis)
-inline unsigned long long grid_index_fftw_c(int x, int y, int z, int dim[3]) {
+static inline unsigned long long grid_index_fftw_c(int x, int y, int z, int dim[3]) {
     return (z) + (dim[2] / 2 + 1llu) * (y + (dim[1] + 0llu) * x);
 }
 
 // Convert a position on [0,BOX_LEN] to an index for a particular cell size.
 // NOTE: assumes the cell at idx == 0 is *centred* at (0,0,0), and so adds 0.5
-inline void pos_to_index(double pos[3], double cell_size_inv, int idx[3]) {
+static inline void pos_to_index(double pos[3], double cell_size_inv, int idx[3]) {
     idx[0] = (int)(pos[0] * cell_size_inv + 0.5);
     idx[1] = (int)(pos[1] * cell_size_inv + 0.5);
     idx[2] = (int)(pos[2] * cell_size_inv + 0.5);
@@ -104,13 +104,9 @@ inline void pos_to_index(double pos[3], double cell_size_inv, int idx[3]) {
 
 // Convert an index on one grid to the corresponding index on a grid of differing resolution
 // 0.5 is added on the **OUTPUT** resolution becase dim_ratio is not necessarily an integer
-inline void resample_index(int idx_in[3], double dim_ratio, int idx_out[3]) {
-    idx_out[0] = (int)(idx_in[0] * dim_ratio + 0.5);
-    idx_out[1] = (int)(idx_in[1] * dim_ratio + 0.5);
-    idx_out[2] = (int)(idx_in[2] * dim_ratio + 0.5);
-}
+void resample_index(int idx_in[3], double dim_ratio, int idx_out[3]);
 
-inline double index_to_k(int idx, double len, int dim) {
+static inline double index_to_k(int idx, double len, int dim) {
     // Convert an index to a k-mode, assuming box of length len and dim pixels
     double buf = (idx <= dim / 2) ? idx : (idx - dim);
     return buf * 2. * M_PI / len;
