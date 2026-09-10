@@ -1417,6 +1417,104 @@ $$V_{\rm cool,0}=3.714\ \frac{\rm km}{\rm s}\ \xrightarrow{\ \displaystyle M=\sq
 > 数值复算脚本：`train/_probe_mcrit_coeff.py`
 > （本地临时探针，`train/` 被 .gitignore 忽略，**未入库**；其数值产出已固化于上表）。
 
+#### 3.3.4 ★ 完整参数化：Muñoz+22 的综合拟合（21cmFAST 实际采用）
+
+> **【2026-09-10 查证自原论文】**
+> Muñoz, Qin, Mesinger, Murray, Greig & Mason 2022, MNRAS 511, 3657
+> （arXiv:2110.13919，`论文/The impact of the first galaxies on cosmic dawn and reionization.pdf`）
+> —— 作者含 21cmFAST 核心开发者，故代码直接采用其拟合。
+
+**Eq.(11)** 把分子冷却晕的翻转质量写成三因子之积：
+
+$$M_{\rm mol}=M_0(z)\;f_{v_{cb}}(v_{cb})\;f_{\rm LW}(J_{21})$$
+
+其中无反馈阈值（原文）：
+
+$$M_0(z)=\tilde M_0(1+z)^{-3/2},\qquad \tilde M_0=3.3\times10^7\,M_\odot$$
+
+> **原文括注："corresponding to $T_{\rm vir}=10^3$ K; Tegmark et al. 1997"**
+
+**这独立印证了 §3.3.0c/§3.3.1 的结论**——三条互不相干的路径给出同一温度：
+
+| 路径 | $T_{\rm vir}$ |
+|---|---|
+| §3.3.1 用 `TtoM` 反解 $3.314\times10^7$ | 1007 K |
+| §3.3.0c 由 $V_{\rm cool,0}=3.714$ km/s 换算 | 1019 K |
+| **Muñoz+22 原文直接写出** | **$10^3$ K** |
+
+##### $f_{\rm LW}$ 与 $f_{v_{cb}}$（Eq. 13 / 16）
+
+$$f_{\rm LW}=1+A_{\rm LW}(J_{21})^{\beta_{\rm LW}}\qquad\text{(13)}$$
+
+$$f_{v_{cb}}=\left(1+A_{v_{cb}}\frac{v_{cb}}{v_{\rm rms}}\right)^{\beta_{v_{cb}}}\qquad\text{(16)}$$
+
+原文取值：
+
+| 参数 | Muñoz+22 | 21cmFAST 代码 |
+|---|---|---|
+| $A_{\rm LW}$ | 2 | `A_LW = 2.0` ✓ |
+| $\beta_{\rm LW}$ | **0.5**（图 1 黑线） | `BETA_LW = 0.6` ⚠ |
+| $A_{v_{cb}}$ | 1 | `A_VCB = 1.0` ✓ |
+| $\beta_{v_{cb}}$ | 1.8 | `BETA_VCB = 1.8` ✓ |
+| $v_{\rm rms}$ | ~30 km/s | `SIGMAVCB = 29.0` ⚠ |
+
+> **$v_{cb}$ 的量纲**：图 2 注明 "here divided by its rms value $v_{\rm rms}$ so it is dimensionless"。
+> 即式中的 $v_{cb}$ 是**无量纲比值** $v_{cb}/v_{\rm rms}$（0 至 ~3，Maxwell–Boltzmann 分布）。
+
+各模拟的独立拟合值（原文）：
+
+| 模拟 | $\{A_{\rm LW},\beta_{\rm LW}\}$ |
+|---|---|
+| Kulkarni+21 | {0.8, 0.9} |
+| Schauer+21 | {3.0, 0.5} |
+| **Muñoz 采用（居中）** | **{2, 0.5}** |
+
+##### 两处代码与论文的不一致（记录备查）
+
+1. **`BETA_LW = 0.6` vs 论文图注 0.5**：代码注释写
+   "Latest simulations suggest 2.0 and 0.6. See Sec 2 of Muñoz+21 (2110.13919)"，
+   但论文图 1 注明确为 0.5。差异虽小（$J_{21}=1$ 时 $f_{\rm LW}$ 分别为 3.0 与 3.0；
+   $J_{21}=0.1$ 时 1.50 vs 1.63，约 8%），若做高精度对比需留意。
+2. **`SIGMAVCB = 29.0` vs 论文 ~30 km/s**：约 3% 差异，可能源于宇宙学参数不同。
+
+##### Muñoz+22 对 Fialkov+12 的评价
+
+论文 Eq.(17) 复述了 Fialkov+12 的原形式，并明确评价（图 2 注）：
+
+> "The brown dashed line shows the formula from Fialkov et al. (2012),
+> which **underpredicts** the star formation suppression from relative velocities."
+
+$$V_{\rm mol}=\sqrt{V_0^2+\alpha_{cb}^2v_{cb}^2(z)}\qquad\text{(17)}$$
+
+（此处 $V_0$ 被引用为 4 km/s，即 Fialkov+12 最优拟合 3.714 km/s 的四舍五入。）
+
+**⇒ 所以：基线 $M_0(z)$ 沿用 Fialkov+12（经 Tegmark+97 的 $10^3$ K），
+而 $f_{\rm LW}$、$f_{v_{cb}}$ 已替换为 Muñoz+22 依据更新模拟（Kulkarni+21、Schauer+21）的更强拟合。**
+
+#### 3.3.5 Fialkov+12 的"三效应"与 21cmFAST 的结构对应
+
+Fialkov+12 §5 把相对速度的影响分解为**三种效应**（原文 Eq. 4）：
+
+> "the relative velocities produce three distinct effects (equation 4):
+> suppression of the **halo abundance** ($dn/dM$), suppression of the **gas content**
+> within each halo ($f_g(M)$), and **boosting of the minimum cooling mass**
+> ($M_{\rm cool}$, determined by $V_{\rm cool}(z)$)"
+
+并给出量级："at $z=20$ the bulk velocities reduce the mean gas fraction in
+star-forming haloes by a factor of **1.8** and that in minihaloes by **3.1**"。
+
+与 21cmFAST 的 `N_ion = ∫ [HMF] × [nion_fraction] dlnM` 对照：
+
+| Fialkov+12 效应 | 21cmFAST 对应 | FDM 现状 |
+|---|---|---|
+| ① 晕丰度 $dn/dM$ 抑制 | HMF 通道 | ✅ 已实现（`dndm_FDM`） |
+| ② 每晕气体含量 $f_g(M)$ 抑制 | 未显式建模（吸收进 $f_\star$ 等参数） | — |
+| ③ **冷却质量 $M_{\rm cool}$ 提升** | `M_turn` / `mcrit_noLW` | ❌ **完全缺失** |
+
+**这正是第三篇 §5 提出用 $M_{\rm sol}$ 改造 $m_{\rm crit}$ 的根本依据**——
+FDM 的 soliton 平核降低中心气体密度，等效于抬高有效冷却阈值，
+即作用在**效应 ③**，与已实现的效应 ① 相互独立、互补（§8.1 的"两个互补通道"）。
+
 #### 3.4 NFW 尖点的中心密度优势
 
 NFW 密度剖面 [1] $\rho(r) \propto r^{-1}(1 + r/r_s)^{-2}$ 在 $r \to 0$ 处 $\rho \to \infty$（形式发散 [1]）。实际受角动量或自由流截断，但核心密度仍极高。H₂ 冷却率 $\Lambda \propto n_H^2$ [5]，高中心密度 → 高效冷却 → 低质量晕也可形成恒星。
