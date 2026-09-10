@@ -135,6 +135,7 @@ double expected_nhalo(double redshift);
 
 /* Sigma interpolation table access (avoids re-init with M_MIN_INTEGRAL) */
 double EvaluateSigma(double lnM);
+double EvaluateSigmaConditional(double lnM);
 double EvaluatedSigmasqdm(double lnM);
 /*-----------------------*/
 

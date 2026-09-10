@@ -44,8 +44,11 @@ double T_F(double k) {
  * FDM HMF Suppression Factor  --  dndm_FDM(M)
  * ---------------------------------------------------------------------------
  * Multiplicative suppression factor for the halo mass function in FDM
- * cosmologies.  Applies the high-mass cutoff due to quantum pressure.
- * Reference: Schive et al. (2016), Eq. (7).
+ * cosmologies.  Applies the LOW-MASS suppression due to quantum pressure
+ * (NOTE: the Schive+16 fit index HMF_FINDEX is negative (-1.1), so halos
+ *  with M << M0 are suppressed, NOT high-mass halos. An earlier version of
+ *  this comment incorrectly said "high-mass cutoff".)
+ * Reference: Schive et al. (2016), Eq. (7); Liu et al. (2025), Eq. (3).
  * ---------------------------------------------------------------------------
  */
 double dndm_FDM(double M) {

@@ -314,7 +314,7 @@ void initialise_Nion_Conditional_spline(double z, double min_density, double max
     double growthf = dicke(z);
     double lnMmin = log(Mmin);
     double lnMmax = log(Mmax);
-    double sigma2 = EvaluateSigma(log(Mcond));
+    double sigma2 = EvaluateSigmaConditional(log(Mcond));
 
     // If we use minihalos, both tables are 2D (delta,mturn) due to reionisaiton feedback
     // otherwise, the Nion table is 1D, since reionsaiton feedback is only active with minihalos
@@ -432,7 +432,7 @@ void initialise_SFRD_Conditional_table(double z, double min_density, double max_
     double lnM_condition = log(Mcond);
     double lnMmin = log(Mmin);
     double lnMmax = log(Mmax);
-    sigma2 = EvaluateSigma(
+    sigma2 = EvaluateSigmaConditional(
         lnM_condition);  // sigma is always the condition, whereas lnMmax is just the integral limit
     double growthf = dicke(z);
 
@@ -515,7 +515,7 @@ void initialise_Xray_Conditional_table(double redshift, double min_density, doub
     double lnMmin = log(Mmin);
     double lnMmax = log(Mmax);
     // sigma is always the condition, whereas lnMmax is just the integral limit
-    double sigma2 = EvaluateSigma(lnM_condition);
+    double sigma2 = EvaluateSigmaConditional(lnM_condition);
 
     float MassTurnover[NMTURN];
     for (i = 0; i < NMTURN; i++) {
@@ -596,7 +596,7 @@ void initialise_dNdM_tables(double xmin, double xmax, double ymin, double ymax, 
 
     if (!from_catalog) {
         lnM_cond = param;
-        sigma_cond = EvaluateSigma(lnM_cond);
+        sigma_cond = EvaluateSigmaConditional(lnM_cond);
     }
 
     nx = simulation_options_global->N_COND_INTERP;
@@ -629,7 +629,7 @@ void initialise_dNdM_tables(double xmin, double xmax, double ymin, double ymax, 
             // set the condition
             if (from_catalog) {
                 lnM_cond = x;
-                sigma_cond = EvaluateSigma(lnM_cond);
+                sigma_cond = EvaluateSigmaConditional(lnM_cond);
                 // barrier at descendant mass
                 delta = get_delta_crit(matter_options_global->HMF, sigma_cond, param) / param *
                         growth_out;
@@ -689,7 +689,7 @@ void initialise_dNdM_inverse_table(double xmin, double xmax, double lnM_min, dou
     double min_lp = simulation_options_global->MIN_LOGPROB;
     if (!from_catalog) {
         lnM_cond = param;
-        sigma_cond = EvaluateSigma(lnM_cond);
+        sigma_cond = EvaluateSigmaConditional(lnM_cond);
     }
 
     int i, k;
@@ -738,7 +738,7 @@ void initialise_dNdM_inverse_table(double xmin, double xmax, double lnM_min, dou
             // set the condition
             if (from_catalog) {
                 lnM_cond = x;
-                sigma_cond = EvaluateSigma(lnM_cond);
+                sigma_cond = EvaluateSigmaConditional(lnM_cond);
                 // Barrier at descendant mass scaled to progenitor redshift
                 delta = get_delta_crit(matter_options_global->HMF, sigma_cond, param) / param *
                         growth_out;
@@ -1228,4 +1228,30 @@ double EvaluatedSigmasqdm(double lnM) {
     if (matter_options_global->FDM)
         return dsigmasqdm_z0_pre(exp(lnM));
     return dsigmasqdm_z0(exp(lnM));
+}
+
+/* ---------------------------------------------------------------------------
+ * Conditional-scale sigma  --  EvaluateSigmaConditional(lnM)
+ * ---------------------------------------------------------------------------
+ * Returns sigma(M) for the *conditioning* scale M (cell / parent-halo mass),
+ * i.e. sigma2 in the conditional mass function.
+ *
+ * Unlike EvaluateSigma() — which returns the CDM-reference sigma when FDM is
+ * on (needed for the halo-collapse statistics, sigma1) — this function ALWAYS
+ * reads the main table, which in FDM mode contains the FDM sigma (built from
+ * power_in_k, which includes the T_F(k) cutoff).
+ *
+ * This reproduces Liu et al. (2025), Eq. (5):
+ *
+ *     nu^2 = [delta_c - delta_FDM]^2 / [sigma^2_CDM(m) - sigma^2_FDM(M)]
+ *                                        ^ sigma1        ^ sigma2 (this fn)
+ *
+ * Reference: Liu et al. 2025, PRD 112, 103534, Eq. (5).
+ * ---------------------------------------------------------------------------
+ */
+double EvaluateSigmaConditional(double lnM) {
+    if (matter_options_global->USE_INTERPOLATION_TABLES > 0) {
+        return EvaluateRGTable1D_f(lnM, &Sigma_InterpTable);
+    }
+    return sigma_z0(exp(lnM));
 }

@@ -437,18 +437,39 @@ double xray_fraction_doublePL(double lnM, void *param_struct) {
 
 double conditional_hmf(double growthf, double lnM, double delta, double sigma, int HMF) {
     // dNdlnM = dfcoll/dM * M / M * constants
+    double result;
     if (HMF == 0) {
-        return dNdM_conditional_EPS(growthf, lnM, delta, sigma);
+        result = dNdM_conditional_EPS(growthf, lnM, delta, sigma);
+    } else if (HMF == 1) {
+        result = dNdM_conditional_ST(growthf, lnM, delta, sigma);
+    } else if (HMF == 4) {
+        result = dNdlnM_conditional_Delos(growthf, lnM, delta, sigma);
+    } else {
+        // NOTE: Normalisation scaling is currently applied outside the integral, per condition
+        // This will be the rescaled EPS CMF,
+        result = dNdM_conditional_EPS(growthf, lnM, delta, sigma);
     }
-    if (HMF == 1) {
-        return dNdM_conditional_ST(growthf, lnM, delta, sigma);
-    }
-    if (HMF == 4) {
-        return dNdlnM_conditional_Delos(growthf, lnM, delta, sigma);
-    }
-    // NOTE: Normalisation scaling is currently applied outside the integral, per condition
-    // This will be the rescaled EPS CMF,
-    return dNdM_conditional_EPS(growthf, lnM, delta, sigma);
+    // FDM: 条件 HMF 不乘 dndm_FDM —— 与 Liu+25 (PRD 112, 103534) 源码逻辑保持一致。
+    //
+    // 【2026-09-10 回退说明】此处原为：
+    //     if (matter_options_global->FDM) { result *= dndm_FDM(exp(lnM)); }
+    // 其理由是 docs/FDM_MCG_modeling.md §3 方案 2 的物理类比——
+    //   「f_FDM 是 halo collapse 的普适抑制，不依赖环境，故条件/无条件 HMF 都应乘」
+    //   （类比：条件 ST 解析导出自无条件 ST，故 ST 参数可用于条件 HMF）。
+    // 该论证在物理上有其道理，但与 Liu 源码实现不一致，现按参考实现回退。
+    //
+    // 实测依据（docs/FDM_dndm_report.md §13）：
+    //   · 全局（无条件）路径：fork 与 Liu 严格一致（中位相对误差 3e-13），
+    //     故功率谱与无条件 HMF 的复现图必然完全相同；
+    //   · 条件路径：原始条件积分 A(fork,乘f)/B(Liu,不乘f) ≈ 0.38（差约 60%），
+    //     但经 mean-fixing 后 δ=0 处完全对齐，|δ|≤0.2 内 <4%，
+    //     仅起伏量（δ=0.5 约 11%、δ=1 约 29%）显现差异。
+    //
+    // FDM 效应在条件路径仍通过 Liu Eq.(5) 的环境调制体现：
+    //   sigma1 = sigma_CDM(m)            （dNdM_conditional_EPS 内）
+    //   sigma2 = sigma_FDM(M)            （EvaluateSigmaConditional）
+    //   分子    = delta_c - delta_FDM     （ICs 由含 T_F 的功率谱生成）
+    return result;
 }
 
 double c_mf_integrand(double lnM, void *param_struct) {
@@ -460,6 +481,7 @@ double c_mf_integrand(double lnM, void *param_struct) {
 
     return conditional_hmf(growthf, lnM, delta, sigma2, HMF);
 }
+
 
 double c_fcoll_integrand(double lnM, void *param_struct) {
     return exp(lnM) * c_mf_integrand(lnM, param_struct);

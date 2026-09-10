@@ -65,6 +65,7 @@ double EvaluateJ(double u_res, double gamma1);
 void initialiseSigmaMInterpTable(float M_Min, float M_Max);
 double EvaluateSigma(double lnM);
 double EvaluatedSigmasqdm(double lnM);
+double EvaluateSigmaConditional(double lnM);
 
 void InitialiseSigmaInverseTable();
 double EvaluateSigmaInverse(double sigma);

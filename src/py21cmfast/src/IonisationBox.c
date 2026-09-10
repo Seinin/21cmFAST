@@ -610,7 +610,7 @@ void copy_filter_transform(struct FilteredGrids *fg_struct, struct IonBoxConstan
         if (consts->filter_recombinations) {
             filter_box(fg_struct->N_rec_filtered, box_dim, consts->hii_filter, R, 0.);
         }
-        if (consts->lagrangian_source_grids) {
+        if (consts->lagrangian_source_grids) {//注意，第三个是一个互斥选项
             int filter_hf = astro_options_global->USE_EXP_FILTER ? 3 : consts->hii_filter;
             filter_box(fg_struct->stars_filtered, box_dim, filter_hf, R, consts->mfp_meandens);
             if (astro_options_global->INHOMO_RECO) {
@@ -894,7 +894,7 @@ void calculate_fcoll_grid(IonizedBox *box, IonizedBox *previous_ionize_box,
                         f_coll_total +=
                             box->unnormalised_nion[fc_r_idx * HII_TOT_NUM_PIXELS + index_r];
                         if (isfinite(f_coll_total) == 0) {
-                            LOG_ERROR(
+                            LOG_ERROR( 
                                 "f_coll is either infinite or NaN! %d %g (%d,%d,%d)?: dens %g, "
                                 "prev %g",
                                 rspec->R_index, rspec->R, x, y, z, curr_dens, prev_dens);
@@ -958,6 +958,7 @@ void calculate_fcoll_grid(IonizedBox *box, IonizedBox *previous_ionize_box,
 }
 
 int setup_radii(struct RadiusSpec **rspec_array, struct IonBoxConstants *consts) {
+    // 电离泡半径上限：取 R_BUBBLE_MAX 与盒长的较小者
     double maximum_radius = fmin(astro_params_global->R_BUBBLE_MAX,
                                  physconst.l_factor * simulation_options_global->BOX_LEN);
 
@@ -965,8 +966,9 @@ int setup_radii(struct RadiusSpec **rspec_array, struct IonBoxConstants *consts)
     // TODO: figure out why this is used in such a specific case
     if (consts->lagrangian_source_grids && !astro_options_global->IONISE_ENTIRE_SPHERE &&
         (consts->pixel_length < 1))
-        cell_length_factor = 1.;
+        cell_length_factor = 1.;//特殊处理，拉格朗日网格且不是电离整个球体且单元长度小于1，则单元长度为1
 
+    // 电离泡半径下限：取 R_BUBBLE_MIN 与格点尺度的较大者
     double minimum_radius =
         fmax(astro_params_global->R_BUBBLE_MIN, cell_length_factor * consts->pixel_length);
 
@@ -974,7 +976,7 @@ int setup_radii(struct RadiusSpec **rspec_array, struct IonBoxConstants *consts)
     int n_radii =
         (int)(log(maximum_radius / minimum_radius) / log(astro_params_global->DELTA_R_HII_FACTOR) +
               1);
-    *rspec_array = malloc(sizeof(**rspec_array) * n_radii);
+    *rspec_array = malloc(sizeof(**rspec_array) * n_radii);//申请内存
 
     // We want the following behaviour from our radius Values:
     //   The smallest radius is the cell size or global min
@@ -989,7 +991,7 @@ int setup_radii(struct RadiusSpec **rspec_array, struct IonBoxConstants *consts)
         (*rspec_array)[i].R = minimum_radius * pow(astro_params_global->DELTA_R_HII_FACTOR, i);
         // TODO: is this necessary? prevents the last step being small, but could hide some
         //  unexpected behaviour/bugs if it finishes earlier than n_radii-2
-        if ((*rspec_array)[i].R > maximum_radius - FRACT_FLOAT_ERR) {
+        if ((*rspec_array)[i].R > maximum_radius - FRACT_FLOAT_ERR) {//如果这一项已经离上限足够近，那么这一项就是最后一项，并取上限，否则下一项会超出上限
             (*rspec_array)[i].R = maximum_radius;
             n_radii = i + 1;  // also ends the loop after this iteration
         }
