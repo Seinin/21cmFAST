@@ -11,8 +11,11 @@
 | **第二篇** | 冷却通道：CDM 拟合因子的依赖审计（A–E 分类） | 现行 |
 | **第三篇** | 分子冷却阈值 $m_{\rm crit}$ 的 FDM 迁移方案（含 §6 数值表，已复算验证） | 现行 |
 | **第四篇** | 一致性审计与冲突裁决、基线说明 | 现行 |
-| **第五篇** | HMF 处理方案（**历史存档**：核心结论已被推翻） | 历史 |
-| **第六篇** | MCG 建模方案（**历史存档**：方案 2 已于 2026-09-10 回退） | 历史 |
+| **第五篇** | 备选方案存档（未实施）：只改 $M_{\rm turn}$、Du+17 完整解 | 参考 |
+
+> 已删除的无价值内容：原第五篇（「条件 HMF 应当加 $f_{\rm FDM}$」与 2026-09-10 回退后的代码**直接矛盾**）、
+> 原第六篇的方案 2（已回退）/方案 3（不推荐）/实施建议（已作废）/文件索引/重复参考文献/
+> 附录 A 诊断（已被第一篇 §8 修正）。正确结论见第一篇 §8–§9。
 
 ## 核心结论速览
 
@@ -1839,29 +1842,7 @@ $$
 > $m_{\rm crit}^{\rm FDM} = \sqrt{[m_{\rm crit}^{\rm CDM}(z)]^2 + M_{\rm sol}^2(m_{22})}$，
 > 由 `scripts/calibrate_fdm_mcrit.py` 实现（可直接复算 §6 表格）。
 >
-> 本附录仅记录算法结构，供理解缺陷成因之用。
-
-##### A.1 五层架构
-
-```
-Layer 1: 目标 — 对 (z, m_a, J_21)，找到最小晕质量使 H₂ 冷却触发
-    │
-Layer 2: 主循环 — 二分查找 M_crit
-    │   下界：T_vir → 120 K 的维里质量
-    │   上界：1e13 M_⊙
-    │
-Layer 3: 冷却判定 — single-halo physics
-    │   Step 3.1: T_vir < 120 K → 直接 False
-    │   Step 3.2: ρ_DM = ρ_NFW(0.1r_s) 或 ρ_soliton(r=0)
-    │   Step 3.3: n_H = f_b · ρ_DM · X_H / (μ m_p)
-    │   Step 3.4: x_H₂ 化学（含 LW [11] 自屏蔽迭代）
-    │   Step 3.5: Λ_H₂(Galli & Palla 1998 [5])
-    │   Step 3.6: 判定 t_cool < t_ff
-    │
-Layer 4: 物理模型 — NFW profile [1], soliton profile [12] (Schive+14)
-    │
-Layer 5: 后处理 — 幂律拟合, 与 Fialkov+12 [9] 对比, 诊断输出
-```
+> 本附录记录该脚本的**缺陷成因与定量证据**，供避免重蹈覆辙之用。
 
 ##### A.2 静态模型的根本缺陷
 
@@ -2029,15 +2010,19 @@ git diff baseline/pre-fdm HEAD -- src/py21cmfast/src/ # 仅已提交部分
 | `_functionprototypes_wrapper.h` | +13 | — |
 | `debugging.c` | ±11 | 仅打印 FDM 参数（L100, L119） |
 
-#### 2.2 混入的非 FDM 改动（4 文件，**审计时排除**）
+#### 2.2 混入的非 FDM 改动（**审计时排除**）
 
 | 文件 | 改动 | 性质 |
 |---|---|---|
 | `indexing.c` / `indexing.h` | +6 / ±16 | `inline` → `static inline` 链接性整理 + `resample_index` 从 header 迁至 .c |
-| `IonisationBox.c` | ±18 | `R_index_MINI`/`R_MINI` 字段 + 中文注释（无 FDM/m22 关键字） |
 | `.gitignore` | ±2 | `py21cmfast/` → `/py21cmfast/` 路径锚定 |
 
 > 这些改动与 FDM 逻辑无关，是同期混入的工程性改动。
+>
+> **【2026-09-10 更新】** 原列于此的 `IonisationBox.c` 条目（`R_index_MINI`/`R_MINI` 字段）
+> **已删除**：该 WIP 只赋值未在 `struct RadiusSpec` 中定义，导致编译失败，
+> 且上下游 v4.1.1 均无此字段，属未完成的独立改动（与 FDM 无关）。
+> 同时修正了该文件中 `maximum_radius`/`minimum_radius` 上下限写反的注释。
 
 ---
 
@@ -2207,633 +2192,71 @@ double EvaluateSigma(double lnM) {
 
 
 
-# 第五篇　[历史存档] HMF 处理方案（结论已被推翻）
+# 第五篇　备选方案存档（未实施）
 
-> 来源：`docs/FDM_hmf_design.md`　状态：**历史**
-
-> **⚠ 本篇为历史存档**，其内容已被第一篇/第四篇取代或修正，保留仅用于追溯决策过程，请勿据此实施。
-
-### 无条件 HMF vs 条件 HMF 的用途
-
-| 函数 | 范围 | 用在哪 |
-|------|------|--------|
-| **无条件 HMF** (`unconditional_hmf`) | 全局、全宇宙平均 | 归一化因子、光度函数、再电离历史 ODE |
-| **条件 HMF** (`conditional_hmf`) | 逐格点、依赖 δ(x) | 每个格点的 f_coll / N_ion / X-ray 积分 + 离散采样表 |
-
-#### 无条件 HMF 的用途
-
-1. **全局归一化 / mean-fixing**
-
-   计算整个模拟箱的平均坍缩比例、平均光子产率、平均中性质数密度等**全局量**，用作对条件结果的归一化基准：
-
-   ```c
-   // IonisationBox.c — 全局平均 f_coll
-   curr_box->mean_f_coll = Fcoll_General(z, lnMmin, lnMmax);  // → 用无条件 HMF 积分
-
-   // IonisationBox.c — 全局平均 N_ion
-   f_coll_curr = Nion_General(z, lnMmin, lnMmax, mturn, &sc);  // → 也用无条件 HMF 积分
-   ```
-
-   这些全局平均值后续被用来对每个格点的条件积分结果做 mean-fixing：
-
-   ```c
-   // SpinTemperatureBox.c:1619
-   avg_fix_term = mean_sfr_zpp[R_ct] / ave_fcoll;
-   // 全局平均 / 条件平均 → 修正因子
-   ```
-
-2. **光度函数**
-
-   计算 UV 光度函数时，直接乘无条件 HMF：
-
-   ```c
-   // LuminosityFunction.c
-   log10phi = log10( unconditional_hmf(...) / M * exp(-M_turn/M) * const * duty_factor / dMuvdM );
-   ```
-
-3. **全局再电离历史**
-
-   光子守恒积分（独立于格点的全局 ODE）：
-
-   ```c
-   // photoncons.c
-   Nion0 = Nion_General(z0, lnMmin, lnMmax, mturn, &sc);  // 无条件
-   ```
-
-#### 条件 HMF 的用途
-
-1. **每个格点的条件 f_coll / N_ion 计算**
-
-   `IonisationBox.c` 中，对每个格点 (x⃗)，用**该格点的 δ** 计算条件积分：
-
-   ```c
-   Splined_Fcoll = EvaluateNion_Conditional(curr_dens, ...);
-   // 对质量从 M_min 到 M_cond 积分 c_nion_integrand
-   ```
-
-   被积函数链：
-   ```
-   c_nion_integrand → nion_fraction × c_mf_integrand → nion_fraction × conditional_hmf
-   ```
-
-   条件 HMF 是每个格点 f_coll 的核心输入。
-
-2. **离散采样的采样表**
-
-   `stoc_set_consts_cond` 在建立 F⁻¹ 插值表时用的也是条件 HMF（`initialise_dNdM_tables` 内部调用）。
-
-#### 关系总结
-
-条件 HMF 给出格点之间的相对差异，无条件 HMF 提供全局归一化基准。格点的物理量：
-
-$$\text{格点物理量} = \text{条件积分结果} \times \frac{\text{全局无条件平均}}{\text{格点条件平均}}$$
-
-确保箱平均和全局一致。
-
----
-
-### FDM 修改：条件 HMF 应当如何改
-
-> **【2026-09-09 修订】** 本节原有结论「条件 HMF 不能加 `dndm_FDM`」已被**推翻**。
-> 经对照 Liu et al. 2025 (PRD 112, 103534) 论文原文与 `D:\v21cmFAST` 原始源码核实：
-> Liu 论文**明确要求**条件 HMF 保留 $f_{\rm FDM}$ 因子，且给出了环境调制的 ansatz（Eq.(5)）。
-> 详见 `docs/FDM_audit_report.md` §3–§5。以下保留原文并附更正。
-
-**这是故意设计的，不是遗漏。**——此判断**已过时**，见下 §3 更正。
-
-#### 1. σ(M) 统一用 CDM 参考值
-
-在 FDM 模式下，`EvaluateSigma` 和 `EvaluatedSigmasqdm` 实际走的是 `sigma_z0_pre`（CDM reference，不含 $T_F$），这是全局设定：
-
-```c
-// interp_tables.c
-// FDM: use CDM-reference sigma table (no T_F cutoff) for HMF calculations
-if (matter_options_global->FDM)
-    return EvaluateRGTable1D_f(lnM, &Sigma_InterpTable_CDM);
-```
-
-所以无条件和条件 HMF 用的都是**同一套 CDM σ(M)**，保证了数学自洽性。
-
-> **【修订注】** 这个「统一」恰恰是问题所在。按 Liu Eq.(5)，条件 HMF 的分母应为
-> $\sigma^2_{\rm CDM}(m) - \sigma^2_{\rm FDM}(M)$——**两个 σ 语义相反**：
-> - $\sigma_1 = \sigma_{\rm CDM}(m)$（晕质量）→ 用 CDM 表 ✓
-> - $\sigma_2 = \sigma_{\rm FDM}(M)$（条件尺度）→ 应用**含 $T_F$ 的 FDM 表**
+> 本篇仅保留**尚未实施且具备参考价值**的备选方案。
 >
-> 而 `EvaluateSigma` 在 FDM 下**无条件**返回 CDM σ，导致 $\sigma_2$ 退化为 $\sigma_{\rm CDM}(M)$，
-> 偏离 Eq.(5)。条件 HMF 的 $\sigma_2$ 全部经该函数取得
-> （`interp_tables.c:317/435/518/599/632/692/741` 共 7 处）。
-> 详见 `docs/FDM_audit_report.md` §4.1。
+> 以下内容已删除，正确结论见**第一篇 §8–§9**：
+> - 「条件 HMF 乘 $f_{\rm FDM}$」（方案 2）—— 已于 2026-09-10 回退，见第一篇 §9.7
+> - 「FDM σ 通道方案」（方案 3）—— 不推荐，与 $f_{\rm FDM}$ 互斥
+> - Liu 源码的公式级对比诊断 —— 已被第一篇 §8 修正
+> - 已过时的代码基础设施描述、文件索引、重复参考文献
 
-#### 2. 无条件 HMF → 可以加 `dndm_FDM`
-
-`dndm_FDM(M)` 是 Schive+2016 对**全局 N-body 模拟 HMF** 的拟合——整箱平均，不分 δ：
-
-```c
-// hmf.c
-// FDM: apply Schive+2016 HMF suppression factor
-if (matter_options_global->FDM) {
-    result *= dndm_FDM(exp(lnM));
-}
-```
-
-#### 3. 条件 HMF → **应当加**（原「不能加」结论已推翻）
-
-##### 3.1 原论据及其错误
-
-原论据：把 `dndm_FDM(M)` 硬乘到条件 HMF 上会破坏闭合关系
-$\langle \text{unconditional}_{\text{FDM}}(M) \rangle_{\delta} \neq \text{conditional}_{\text{FDM}}(M|\delta)$，
-导致 mean-fixing 失效。
-
-**该论据数学上不成立。** $f_{\rm FDM}(M)$ 只依赖 $M$、不依赖 $\delta$，可从 $\delta$ 平均中提出：
-
-$$\big\langle (dn/dM)|_{\delta}^{\rm CDM} \times f_{\rm FDM}(M) \big\rangle_{\delta}
-= f_{\rm FDM}(M) \times \big\langle (dn/dM)|_{\delta}^{\rm CDM} \big\rangle_{\delta}
-= f_{\rm FDM}(M) \times (dn/dM)^{\rm CDM}
-= (dn/dM)^{\rm FDM}$$
-
-**闭合关系严格成立**，不会破坏 mean-fixing。
-
-##### 3.2 Liu+25 的论文依据
-
-论文 Eq.(3) 定义全局 FDM HMF，其中 $f_{\rm FDM}$ 乘在 $(dn/dm)|_{\rm CDM}$ 上：
-
-$$\left.\frac{dn}{dm}\right|_{\rm FDM} = \left.\frac{dn}{dm}\right|_{\rm CDM} \cdot \left[1+\left(\frac{m}{M_0}\right)^{\alpha}\right]^{-2.2}$$
-
-论文 Eq.(5) 只改写了 peak height $\nu$，并明确说明它「affects the FDM HMF in Eq. (3) **via the $(dn/dm)|_{\rm CDM}$ term**」——
-即 **$f_{\rm FDM}$ 因子依然保留**，Eq.(5) 并未取消它。
-
-论文自述闭合性：
-
-> "On very large scales ($M\to\infty$), the density-modulated HMF resulting from this ansatz reduces to the global average, Eq. (3), as expected."
-
-若条件 HMF 不含 $f_{\rm FDM}$，则在 $M\to\infty$ 极限下**无法**回归 Eq.(3) 的全局 FDM HMF——闭合反而被破坏。
-这从论文自身反证了 $f_{\rm FDM}$ 必须保留。
-
-##### 3.3 条件 FDM HMF 三要素（Eq.(3)+(5)）
-
-1. **分子**用 $\delta_{\rm FDM}$（FDM 线性密度场）
-2. **分母**用 $\sigma^2_{\rm CDM}(m) - \sigma^2_{\rm FDM}(M)$ —— **混合 σ**
-3. **整体保留** $f_{\rm FDM}(m)$
-
-三者**同时具备**，不是二选一。
-
-> 原文档「FDM 抑制如何随 δ 变化？目前没有任何模拟数据或解析公式能回答」——
-> 该表述在本仓库撰写时成立，但 Liu+25 已给出 Eq.(5)（论文自称首次提出），故**已过时**。
-
-#### 4. 实际效果上的部分保护
-
-即使条件 HMF 没加 `dndm_FDM`，它的**积分结果本身也不完全错**。因为条件 EPS 公式里的
-
-$$\frac{1}{(\sigma^2 - \sigma_{\text{cond}}^2)^{3/2}}$$
-
-在 $\sigma(M) \to \sigma_{\text{cond}}$ 时自然截止——FDM 对 σ(M) 的效果虽然没体现在条件 HMF 的 σ 上（目前用的是 CDM σ），但 $\sigma_{\text{cond}}$ 本身（格点尺度的 σ）也是用同套 CDM σ 算的，两者一起偏移，**比值关系相对稳定**。
-
----
-
-### 总结
-
-> **【原结论已推翻】** 原表述：「`dndm_FDM` 只在无条件 HMF 上乘，是明知条件 HMF 缺少 FDM 修正下的保守做法」。
->
-> **更正**：按 Liu+25 Eq.(3)+(5)，条件 HMF **应当**保留 $f_{\rm FDM}(m)$，本仓库 `hmf.c` 的改动方向是**正确的**。
-> 真正的问题不是「该不该乘 $f_{\rm FDM}$」，而是条件 HMF 的分母 $\sigma_2$ 退化为 CDM σ（应为 FDM σ）。
-
-#### 当前状态（对照 Liu Eq.(5)）
-
-| 要素 | 要求 | 本仓库现状 |
-|---|:-:|:-:|
-| ① $\sigma_{\rm CDM}(m)$ for $\sigma_1$ | ✓ | ✓ |
-| ② $\sigma_{\rm FDM}(M)$ for $\sigma_2$ | ✓ | **✗ 退化为 $\sigma_{\rm CDM}(M)$** |
-| ③ $\times f_{\rm FDM}(m)$ | ✓ | ✓（`hmf.c`，未提交） |
-| ④ 分子用 $\delta_{\rm FDM}$ | ✓ | ✓（ICs 含 $T_F$） |
-
-**仅要素②偏离。**
-
-#### 未来改进方向
-
-1. **修复要素②**：给 `EvaluateSigma` 增加区分 $\sigma_1$/$\sigma_2$ 语义的参数（或新增 `EvaluateSigmaConditional`），
-   使 $\sigma_2$ 取含 $T_F$ 的 FDM σ。**不能**简单删除现有 FDM 分支——那会破坏 $\sigma_1$ 的正确行为。
-2. **验证闭合条件**：$\langle dn/dM(M,\delta)\rangle_\delta = dn/dM(M)$，
-   确认 $M\to\infty$ 时条件 HMF 回归 Eq.(3) 的全局 FDM HMF。
-3. （长期）若追求更高精度，可考虑 Du+17 的完整 FDM excursion set 解（质量依赖 barrier），
-   但需解决与现有 top-hat 滤波器的兼容性，工作量约 2–3 月。
-
-
-
-# 第六篇　[历史存档] MCG 建模方案（方案 2 已回退）
-
-> 来源：`docs/FDM_MCG_modeling.md`　状态：**历史**
-
-> **⚠ 本篇为历史存档**，其内容已被第一篇/第四篇取代或修正，保留仅用于追溯决策过程，请勿据此实施。
-
-> 基于代码现状分析和文献调研，给出 FDM 对分子冷却晕建模的可行方案。
-
----
-
-### 1. 现有代码 FDM 基础设施
-
-代码已有 FDM 基础设施（`fdm.c`），但**只覆盖了无条件 HMF 路径**：
-
-| 已有 | 文件 | 作用 |
-|------|------|------|
-| `T_F(k)` | `fdm.c:35-41` | FDM 线性传递函数，Hu, Barkana & Gruzinov (2000) Eq. (8)-(9) |
-| `dndm_FDM(M)` | `fdm.c:51-56` | Schive+16 HMF 压制因子。~~仅作用于 `unconditional_hmf`~~ → **【2026-09-09 更正】本仓库 `hmf.c:457` 已将其加入 `conditional_hmf`（未提交）；Liu 原码则仅用于无条件路径** |
-| `sigma_z0_pre(M)` | `fdm.c:92-127` | CDM 参考 σ(M)，不含 FDM 截止 |
-| `dsigmasqdm_z0_pre(M)` | `fdm.c:150-185` | CDM 参考 dσ²/dM，不含 FDM 截止 |
-
-#### 无条件 HMF 路径（已有 FDM 支持）
-
-```c
-// hmf.c:480-502 — unconditional_hmf
-double unconditional_hmf(double growthf, double lnM, double z, int HMF) {
-    // ... PS 或 ST 质量函数计算 ...
-    // FDM: apply Schive+2016 HMF suppression factor
-    if (matter_options_global->FDM) {
-        result *= dndm_FDM(exp(lnM));
-    }
-    return result;
-}
-```
-
-#### 条件 HMF 路径（完全未修改）
-
-```c
-// hmf.c:438-452 — conditional_hmf，无 FDM 修正
-double conditional_hmf(double growthf, double lnM, double delta, double sigma, int HMF) {
-    if (HMF == 0) return dNdM_conditional_EPS(...);     // EPS
-    if (HMF == 1) return dNdM_conditional_ST(...);       // Sheth-Tormen
-    if (HMF == 4) return dNdlnM_conditional_Delos(...);  // Delos
-}
-```
-
-#### MCG 相关路径（完全未修改）
-
-MCG 的质量函数积分为 `nion_fraction_mini()`（`hmf.c:397-546`），使用 `Nion_ConditionalM_MINI()` 做条件积分，底层调用 `conditional_hmf()`，因此同样不含 FDM 修正。
-
-MCG 质量阈值为 `lyman_werner_threshold()`（`thermochem.c:282-300`），基于 LW 反馈 + VCB 效应，也不含 FDM 效应。
-
----
-
-### 2. 核心困难
+## 1. 核心困难与文献现状
 
 **FDM 的条件 HMF 没有现成的半解析经验公式可直接用。**
 
 原因不是没人研究，而是 FDM 的 excursion set 问题本质上比 CDM 难：
 
 1. **CDM 的 EPS 依赖 sharp-k 滤波器** —— 恰好对应的马尔可夫过程使 first-crossing 概率有解析解
-2. **FDM 的量子压力天然对应 sharp-k 截止** —— 但 Du et al. (2017) 证明即使使用 sharp-k，FDM 的 barrier 也是**质量依赖的**（不再是常数 δ_c），这导致解析解复杂得多
+2. **FDM 的量子压力天然对应 sharp-k 截止** —— 但 Du et al. (2017) 证明即使使用 sharp-k，FDM 的 barrier 也是**质量依赖的**（不再是常数 $\delta_c$），这导致解析解复杂得多
 3. Du+17 确实解了这个问题（用修正的 Lacey & Cole 形式 + GALACTICUS 半解析模型），但公式涉及**双重数值积分 + 质量依赖 barrier 的 Taylor 展开**，不是一条解析公式能写完的
 
-#### 文献现状
+### 文献现状
 
 - **Jones et al. (2021)**: 直接用的 `dndm_FDM` 乘在 ST HMF 上（和代码现有做法一样），未专门处理 minihalo
-- **Liu et al. (2025)**: 更近一步把 FDM 的 σ(M) 代入了条件 HMF，但也**没有专门处理分子冷却晕**
+- **Liu et al. (2025)**: 更近一步把 FDM 的 $\sigma(M)$ 代入了条件 HMF，但也**没有专门处理分子冷却晕**
 
-**FDM 的分子冷却阈值目前没有一篇文献给出过可直接用的解析公式。所有现有工作都回避了这个问题 —— 要么不做 minihalo，要么直接用 CDM 的 M_turn + FDM HMF 压制。**
+**FDM 的分子冷却阈值目前没有一篇文献给出过可直接用的解析公式。所有现有工作都回避了这个问题 —— 要么不做 minihalo，要么直接用 CDM 的 $M_{\rm turn}$ + FDM HMF 压制。**
 
----
-
-### 3. 可行方案
-
-#### 方案 1：最小改动 —— 只改 M_turn
+## 2. 方案 A：只改 $M_{\rm turn}$（最小改动）
 
 利用现有 FDM 基础设施，**只修改分子冷却质量阈值**：
 
 $$M_{\text{turn}}^{\text{FDM}} = \max\left(M_{\text{cool}},\; M_{1/2}\right), \quad M_{1/2} = 1.6\times 10^{10}\; m_{22}^{-4/3}\; M_\odot$$
 
-其中 $M_{\text{cool}}$ 是现有的分子冷却阈值（含 LW 反馈，来自 `lyman_werner_threshold()`），$M_{1/2}$ 是 Schive+16 半模质量。物理直觉：FDM 量子压力压制了低于 $M_{1/2}$ 的晕形成，因此 MCG 的下限至少为 $M_{1/2}$。
+其中 $M_{\text{cool}}$ 是现有的分子冷却阈值（含 LW 反馈，来自 `lyman_werner_threshold()`），
+$M_{1/2}$ 是 Schive+16 半模质量。物理直觉：FDM 量子压力压制了低于 $M_{1/2}$ 的晕形成，
+因此 MCG 的下限至少为 $M_{1/2}$。
 
-**修改位置**: `thermochem.c:lyman_werner_threshold()` 返回前取 max，或 `hmf.c:nion_fraction_mini()` 的 `Mturn_mcg` 处。
+- **修改位置**：`thermochem.c: lyman_werner_threshold()` 返回前取 max，
+  或 `hmf.c: nion_fraction_mini()` 的 `Mturn_mcg` 处
+- **优点**：~10 行代码，$dndm\_FDM$ 已经定义了 $M_{1/2}$
+- **缺点**：忽略了 FDM 对条件 HMF 形状的修正 —— 在 $\sigma(M)\sim\sigma(R)$ 附近，
+  FDM 的条件 HMF 形状和 CDM 明显不同（Du+17 图 3）
 
-**优点**：~10 行代码，`dndm_FDM` 已经定义了 $M_{1/2}$
-**缺点**：忽略了 FDM 对条件 HMF 形状的修正 —— 在 σ(M)~σ(R) 附近，FDM 的条件 HMF 形状和 CDM 明显不同（Du+17 图 3）
+> 注：与第三篇的 $m_{\rm crit}^{\rm FDM}$ 方案**互斥**（两者都改 $M_{\rm turn}$，
+> 但取值不同：本篇用 $M_{1/2}$，第三篇用 $M_{\rm sol}=\sqrt{(\cdot)^2+M_{\rm sol}^2}$ 合成）。
+> 因 $M_{\rm sol}\ll M_{1/2}$，第三篇方案物理上更优（冷却抑制主导），
+> 本篇仅作备选记录。
 
----
-
-#### 方案 2：条件 HMF 也乘 FDM 压制因子
-
-在 `conditional_hmf` 里加和 `unconditional_hmf` 一样的 `dndm_FDM` 乘积：
-
-```c
-// hmf.c:438-452 — conditional_hmf，新增 FDM 修正
-double conditional_hmf(double growthf, double lnM, double delta, double sigma, int HMF) {
-    double result;
-    if (HMF == 0) {
-        result = dNdM_conditional_EPS(growthf, lnM, delta, sigma);
-    } else if (HMF == 1) {
-        result = dNdM_conditional_ST(growthf, lnM, delta, sigma);
-    } else if (HMF == 4) {
-        result = dNdlnM_conditional_Delos(growthf, lnM, delta, sigma);
-    } else {
-        result = dNdM_conditional_EPS(growthf, lnM, delta, sigma);
-    }
-    // FDM: apply suppression factor (same as unconditional path)
-    if (matter_options_global->FDM) {
-        result *= dndm_FDM(exp(lnM));
-    }
-    return result;
-}
-```
-
-**物理自洽性分析**：
-
-初看似乎有问题——Schive+16 的 `f_FDM(M)` 是为无条件 HMF 拟合的，乘到条件 HMF 上有理论依据吗？
-
-答案是**有，而且是物理自洽的**。关键认知（见附录 A.2）：
-
-- `f_FDM(M)` 是 Schive+16 从 N-body 模拟直接拟合的 **FDM/CDM HMF 比值**，完整吸收了一切 FDM 效应（量子压力、功率谱截断、非线性效应）
-- 条件 HMF 和无条件 HMF 描述的是**同一个物理过程**——halo collapse——只是前者多了一个环境密度的约束
-- FDM 的量子压力对 halo collapse 的抑制是**普适的、不依赖环境的**——一个晕是否被量子压力阻止坍塌，取决于它自身的 M，不取决于它在哪个大尺度环境中
-- 因此 f_FDM(M) 适用于**任何 CDM HMF 基准**：无条件 HMF、条件 HMF、甚至 merger tree 分支——因为它们描述的 collapse 物理是同一个
-
-对比：如果说 "ST 质量函数的参数 (a, p, q) 是为无条件 HMF 拟合的，用来构造 ST 条件 HMF 没有理论依据"——这显然说不通，因为条件 ST 解析导出自无条件 ST。f_FDM 同理。
-
-**缺点**：f_FDM 的经验拟合误差会传播到条件 HMF，且质量接近 M_{1/2} 时 σ 的差异（CDM vs FDM）可能影响 1/(σ²-σ_cond²)^{3/2} 项的形状。但这属于**精度问题**，不是自洽性问题
-
-> **【2026-09-09 重要更正】** 本方案主张「条件公式内部**全用 CDM σ** + 事后乘 $f_{\rm FDM}$」，
-> 与 Liu+25 论文 Eq.(5) **冲突**：Eq.(5) 要求分母为 $\sigma^2_{\rm CDM}(m) - \sigma^2_{\rm FDM}(M)$，
-> 即 $\sigma_2$（条件尺度）必须用 **FDM σ**，不能全用 CDM σ。
->
-> 本仓库按此方案实施后，导致 $\sigma_2$ 退化为 $\sigma_{\rm CDM}(M)$（见附录 A.5）。
-> **乘 $f_{\rm FDM}$ 的方向是正确的**，但「全用 CDM σ」这部分需要修正。
-> 正确公式见附录 A.6。
-
----
-
-#### 方案 3：FDM σ(M) 修正条件 HMF（替代方案，不推荐）
-
-思路：让 FDM 物理从 σ(M) 通道进入——条件 HMF 公式中的 σ(M) 和 σ(M_cond) 都改用 FDM σ（含 T_F(k) 截止），利用 1/(σ²-σ_cond²)^{3/2} 在小质量端的发散自然产生截止，**不额外加 dndm_FDM**。
-
-$$\boxed{\frac{dn}{dM}\Big|_{\text{FDM, alt}}^{\text{cond}} = \frac{dn}{dM}_{\text{CDM}}^{\text{cond}}\big(\sigma_{\text{FDM}}(M),\; \sigma_{\text{FDM}}(M_{\text{cond}})\big)}$$
-
-**与方案 2 互斥**：方案 2（CDM σ + f_FDM）和方案 3（FDM σ，无 f_FDM）是两套不同的物理通道，**不能混用**。如果用 FDM σ 同时又乘 f_FDM，构成双重计数——f_FDM 本身就是用 CDM σ 做分母拟合的。
-
-**σ mix 陷阱**（这就是 Liu+25 代码的 bug）：如果 sigma1 用 CDM σ 而 sigma2 用 FDM σ，σ1²-σ2² 在 FDM 截止区会出现非物理行为（两者来自不同的 σ 函数）。
-
-**缺点**：方案 3 虽然概念上有吸引力（σ 通道自然截止），但其经验有效性未经 N-body 模拟检验——Schive+16 的 f_FDM 是直接拟合 HMF 的，没有独立检验 σ 通道的压制效果。推荐方案 2。
-
----
-
-#### 方案 4：实现 Du+17 的 FDM 条件 HMF
+## 3. 方案 B：实现 Du+17 的完整 FDM 条件 HMF（长期方向）
 
 Du et al. (2017, ApJ, 838, 63) 提供了完整的 FDM excursion set 解。核心公式（Eq. 6-9）：
 
 $$\frac{dn}{d\ln M}\bigg|_{\delta} = \frac{M_{\text{cond}}}{M} \cdot \frac{\Delta\delta}{\sqrt{2\pi\Delta S}}\cdot\exp\!\left(-\frac{\Delta\delta^2}{2\Delta S}\right)\cdot\frac{dS}{d\ln M}\cdot\frac{1}{\Delta S}\cdot\text{Taylor terms}$$
 
-其中 barrier 不再是常数 δ_c，而是质量依赖的：
+其中 barrier 不再是常数 $\delta_c$，而是质量依赖的：
 
 $$\delta_{\text{FDM}}(M, z) = \delta_c \cdot \left[1 + a_1\!\left(\frac{M_{1/2}}{M}\right)^{b_1} + a_2\!\left(\frac{M_{1/2}}{M}\right)^{b_2}\right]$$
 
-参数 (a₁, b₁, a₂, b₂) 是质量依赖 barrier 的拟合系数。
-
-**优点**：理论正确，和 Du+17 的 merger tree 结果一致
-**缺点**：
-
-- 需要在 `conditional_hmf` 里新增一个函数，改写 excursion set 的 barrier
-- 工作量大，且 Du+17 的拟合公式依赖 sharp-k 滤波器，和代码现有的 top-hat 滤波器不完全兼容
-- 估计 2-3 个月工作量
-
----
-
-### 4. 实施建议
-
-| 阶段 | 方案 | 目标 | 工作量 |
-|------|------|------|--------|
-| **短期**（立即可做） | 方案 1 + 方案 2 | M_turn 用 max(M_cool, M_{1/2})，条件 HMF 乘 `dndm_FDM` | ~20 行代码 |
-| **中期**（可选） | 方案 4 | 实现 Du+17 完整 FDM 条件 HMF | 2-3 月 |
-
-**推荐方案 1+2**：f_FDM(M) 是 Schive+16 从 N-body 模拟拟合的 FDM/CDM HMF 比值，完整吸收了一切 FDM 效应。它作为 halo collapse 的普适压制因子，在无条件 HMF 和条件 HMF 中都适用——物理自洽，实现简单。Jones+21 和 Liu+25 在无条件路径已经验证了该做法在 21cm 功率谱层面的效果。
-
-**关于方案 3（σ 通道）**：不推荐。方案 3 与方案 2 互斥（不能既改 σ 又乘 f_FDM），且 σ 通道的压制效果未经 N-body 检验。短期用方案 2 即可。
-
-**诚实的困难**：FDM 的分子冷却阈值目前没有一篇文献给出过可直接用的解析公式。所有现有工作（Jones+21, Liu+25）都回避了这个问题。要做 FDM minihalo，就是在做一件**文献上没有先例的事**。
-
----
-
-### 5. 相关文件索引
-
-| 文件 | 内容 |
-|------|------|
-| `src/py21cmfast/src/fdm.c` | `T_F(k)`, `dndm_FDM(M)`, `sigma_z0_pre(M)` |
-| `src/py21cmfast/src/fdm.h` | FDM 函数声明 |
-| `src/py21cmfast/src/hmf.c` | `unconditional_hmf`（有 FDM）, `conditional_hmf`（无 FDM）, `nion_fraction_mini`（MCG integrand） |
-| `src/py21cmfast/src/thermochem.c` | `lyman_werner_threshold()`（MCG 质量阈值） |
-| `src/py21cmfast/src/cosmology.c` | `EvaluateSigma`, `power_in_k_cdm`, `MtoR`, `TtoM` |
-
-### 6. 参考文献
-
-- Hu, Barkana & Gruzinov (2000), PRL 85, 1158 — FDM 线性传递函数 T_F(k)
-- Schive et al. (2016), PRL 116, 201302 — FDM HMF 压制因子 dndm_FDM(M)
-- Du et al. (2017), ApJ 838, 63 — FDM excursion set / 条件 HMF
-- Jones et al. (2021) — FDM 21cm，使用 dndm_FDM × ST（和代码现有做法一致）
-- Liu et al. (2025), PRD 112, 103534 — FDM 21cm，σ(M) 代入条件 HMF
-
----
-
-### 附录 A: Liu+25 论文 vs 实际代码 —— 公式级对比
-
-> **论文路径**: `D:\v21cmFAST`（WSL 挂载于 `/mnt/d/v21cmFAST`），版本 **v3.3.1**，
-> 全文 `ps.c` **4544 行**，FDM 相关逻辑集中在 `dndm_FDM`、`dNdM_st_F`、`dNdM_conditional`、`sigma_z0_pre`、`dsigma_dk_pre`。
->
-> **⚠ 这是唯一的 Liu 源码权威基准。**
-> **禁止**用 `/home/dministrat/v21cmFAST` 或 `/mnt/d/21cmFAST3.3.1fdm版本` 核对——
-> 那两个是**本仓库的重构版**（commit `1945bf0`，`ps.c` 4423 行，FDM 函数已被抽出到独立 `fdm.c`），
-> 行号与 Liu 原码不一致。此前一次审计因误用该副本得出过错误结论。
-
-#### A.1 σ(M) 的两套计算
-
-代码中有两个独立的被积函数，用于计算不同含义的 σ(M)：
-
-| 函数 | 被积函数 | 功率谱 | 本质 |
-|------|---------|--------|------|
-| `sigma_z0(M)` | `dsigma_dk` (line 350) | FDM 时: `p = k^{n_s} · T_CDM² · T_F(k)²` | **FDM σ** |
-| `sigma_z0_pre(M)` | `dsigma_dk_pre` (line 450) | 始终: `p = k^{n_s} · T_CDM²` | **CDM σ** |
-
-插值表（`ps.c:1692-1694`）：
-
-```c
-Sigma_InterpTable[i]     = sigma_z0(M)       →   σ_FDM(M)
-Sigma_InterpTable_CDM[i] = sigma_z0_pre(M)   →   σ_CDM(M)
-```
-
-命名具有误导性：`Sigma_InterpTable` 反而是 FDM σ，`Sigma_InterpTable_CDM` 才是 CDM σ。
-
----
-
-#### A.2 无条件 HMF
-
-##### 关键物理认知：f_FDM(M) 是一个完整的经验压制因子
-
-Schive+16 的 `f_FDM(M)` 是从 FDM N-body 模拟直接拟合的 FDM/CDM HMF 比值。它**不是**某种部分修正——它已经完整吸收了 FDM 的所有效应：量子压力对 halo collapse 的抑制、T_F(k) 对小尺度功率的截断在 halo 统计上的体现、以及任何非线性效应。
-
-因此正确的用法是：
-
-$$\boxed{\frac{dn}{dM}_{\text{FDM}} = \frac{dn}{dM}_{\text{CDM}}\big(\sigma_{\text{CDM}}\big) \;\times\; f_{\text{FDM}}(M)}$$
-
-**ST 公式中的 σ 必须保持 CDM σ**——因为 f_FDM 就是用 CDM HMF 做分母拟合出来的。如果换成 FDM σ，分母变了，但 f_FDM(M) 还是原来的值，两者不匹配，会引入系统性偏差。在接近 M_{1/2} 的质量范围内，σ_FDM 和 σ_CDM 差异显著，这种「既改 σ 又乘 f」的做法实际上是**双重计数**。
-
-##### 代码实际（`dNdM_st_F`, line 1032-1034）—— 正确
-
-```c
-double dNdM_st_F(double growthf, double M) {
-    return dNdM_st(growthf, M) * dndm_FDM(M);
-}
-```
-
-其中 `dNdM_st`（line 1005-1012）在 FDM 模式下**故意**用 `Sigma_InterpTable_CDM`（CDM σ）：
-
-$$\boxed{\frac{dn}{dM}\Big|_{\text{code}}^{\text{global}} = \frac{dn}{dM}_{\text{ST}}\big(\hat{\nu}_{\text{CDM}}\big) \;\times\; f_{\text{FDM}}(M)}, \quad \hat{\nu}_{\text{CDM}} = \frac{\sqrt{a}\,\delta_c}{D(z)\,\sigma_{\text{CDM}}(M)}$$
-
-**这个选择是物理上正确的，不是 bug。**
-
-##### 论文公式的不精确之处
-
-论文 Eq. (3) 把 f(FDM) 写成「嵌入 HMF 定义」的形式，并暗示 ν 用 FDM σ：
-
-$$dn/dM|_{\text{FDM}} = f_{\text{FDM}} \cdot \text{ST}\big(\nu(\sigma_{\text{FDM}})\big)$$
-
-但在代码层面，无条件 HMF 实际是 CDM σ + 事后 f_FDM。论文的公式描述和代码实现之间存在术语上的不精确，但代码的**做法是正确的**。
-
----
-
-#### A.3 条件 HMF
-
-##### 论文描述（Eq. 5-6）
-
-环境调制作用于 FDM HMF 的 peak height：
-
-$$\nu_{\text{cond}}^{\text{FDM}} = \frac{(\delta_c - \delta_{\text{FDM}}(x,z))^2}{\sigma_{\text{FDM}}^2(M) - \sigma_{\text{FDM}}^2(M_R, z)}$$
-
-论文声称 f(FDM) 从 Eq. (3)「自然继承」到条件 HMF：
-
-$$\boxed{\frac{dn}{dM}\Big|_{\text{FDM}}^{\text{cond}} = f_{\text{FDM}}(M) \cdot \frac{dn}{dM}_{\text{CDM}}^{\text{cond}}\big(\nu_{\text{cond}}^{\text{FDM}}\big)}$$
-
-##### 条件 HMF 的正确做法（基于 A.2 的物理论证）
-
-既然 `f_FDM(M)` 是完整经验压制因子，条件 HMF 应该延续同样的逻辑：
-
-$$\boxed{\frac{dn}{dM}\Big|_{\text{FDM, correct}}^{\text{cond}} = \frac{dn}{dM}_{\text{CDM}}^{\text{cond}}\big(\sigma_{\text{CDM}}(M),\; \sigma_{\text{CDM}}(M_{\text{cond}})\big) \;\times\; f_{\text{FDM}}(M)}$$
-
-即：**条件公式内部全用 CDM σ，事后乘 f_FDM(M)**。和论文的区别在于 ν_cond 是否用 FDM σ——但根据 A.2 的论证，ν_cond 也应该保持 CDM σ，否则构成双重计数。
-
-##### 代码实际（`dNdM_conditional`, line 2240-2286）
-
-> **【2026-09-09 修订】** 原判定的「问题①：σ mix 是 bug」**予以撤回**。
-> 经对照论文 Eq.(5) 核实，混合 σ 正是论文要求（分母 $\sigma^2_{\rm CDM}(m)-\sigma^2_{\rm FDM}(M)$），
-> Liu 代码此处是**正确实现**。真正的问题只有「缺少 $f_{\rm FDM}$ 因子」一项，且它与 σ 通道是**同时具备**关系，非二选一。
-> 详见 `docs/FDM_audit_report.md` §5。
-
-```c
-// line 2251-2256: sigma1 (halo mass) → CDM σ  ← 对（符合 Eq.(5) 分母第一项）
-if (!user_params_ps->FDM) {
-    sigma1 = Sigma_InterpTable[...];       // σ_FDM(M)   [CDM 模式]
-} else {
-    sigma1 = Sigma_InterpTable_CDM[...];   // σ_CDM(M)   [FDM 模式]
-}
-
-// line 2845: sigma2 (conditioning mass) → FDM σ  ← 对（符合 Eq.(5) 分母第二项）
-sigma2 = Sigma_InterpTable[...];           // σ_FDM(M_cond)
-```
-
-条件 HMF 公式（line 2274-2276）是标准 PS 条件形式，**无 f(FDM) 因子**：
-
-$$\boxed{\frac{dn}{d\ln M}\Big|_{\text{code}}^{\text{cond}} = \frac{\delta_1 - \delta_2}{D(z)} \cdot \frac{2\sigma_1\cdot|d\sigma_1/dm|}{(\sigma_1^2 - \sigma_2^2)^{3/2}} \cdot \exp\!\left[-\frac{(\delta_1-\delta_2)^2}{2D^2(z)(\sigma_1^2 - \sigma_2^2)}\right]}$$
-
-其中：
-
-$$\sigma_1 = \sigma_{\text{CDM}}(M), \quad \sigma_2 = \sigma_{\text{FDM}}(M_{\text{cond}})$$
-
-##### 仅有的一处问题
-
-| # | 问题 | 现状 | 正确做法 | 影响 |
-|---|------|------|---------|------|
-| ① | ~~σ(M_cond) 来源~~ | σ_FDM（`Sigma_InterpTable`） | **维持现状**——符合 Eq.(5) | ~~原判「bug」已撤回~~ |
-| ② | f(FDM) 因子 | **无** | 乘 `dndm_FDM(M)` | 全质量范围 FDM 压制缺失 |
-
-**关于①（撤回说明）**：sigma1 用 `Sigma_InterpTable_CDM`、sigma2 用 `Sigma_InterpTable`，
-正是论文 Eq.(5) 分母 $\sigma^2_{\rm CDM}(m) - \sigma^2_{\rm FDM}(M)$ 的精确实现。
-原判定认为「两者应统一为 CDM σ」是**错误的**——它基于「f_FDM 与 σ 通道互斥」的前提，
-而论文实际要求**两者同时具备**（$f_{\rm FDM}$ 由 Eq.(3) 保留，σ 由 Eq.(5) 决定）。
-
-**关于②**：确实缺失。$f_{\rm FDM}$ 应作为 Eq.(3) 的因子保留在条件 HMF 上，
-与 Eq.(5) 的 ν 改写是叠加关系而非互斥。
-
-> 补充：论文 Eq.(5) 还要求分子用 $\delta_{\rm FDM}$（FDM 线性密度场）。
-> Liu 代码中 ICs 由含 $T_F$ 的功率谱生成，故该项自动满足。
-
----
-
-#### A.4 σ 来源的可视化（混合 σ **符合 Eq.(5)**，非 bug）
-
-> **【2026-09-09 修订】** 本节原标题「σ 来源混用的可视化」及「✗ 错误」标注**已更正**。
-
-```
-  Liu+25 代码中，FDM 模式下条件 HMF 的 σ 来源:
-
-  σ(M) 曲线
-  │
-  │  σ_CDM  ──────────────  ← sigma1 (Sigma_InterpTable_CDM) ✓ 符合 Eq.(5) 第一项
-  │     ╲
-  │      ╲  σ_FDM  ───────  ← sigma2 (Sigma_InterpTable)      ✓ 符合 Eq.(5) 第二项
-  │       ╲   (FDM 截止)        （原"应使用 CDM 表"的标注已撤回）
-  │        ╲___
-  └───────────────── log M
-    小质量            M_cond
-
-  sigma1 和 sigma2 来自不同的 σ 函数 → 这正是 Eq.(5) 的
-  σ²_CDM(m) − σ²_FDM(M) 所要求的，不是缺陷
-```
-
-MCG 积分中 `M_cond` 是分子冷却的 M_turn 附近的值，而 halo mass M 积分下限是 M_min，两者都在 FDM 截止敏感的范围内（~10⁶–10¹⁰ M⊙）。
-
-**正确做法（修订）**：
-
-- $\sigma_1$ 用 `Sigma_InterpTable_CDM`（CDM σ）
-- $\sigma_2$ 用 `Sigma_InterpTable`（**FDM σ**，含 $T_F$）——维持 Liu 原实现
-- 条件 HMF 结果**再乘** `dndm_FDM(M)`
-
-即「混合 σ」与「乘 $f_{\rm FDM}$」**同时具备**。
-
----
-
-#### A.5 Liu+25 代码与 Fork 代码的对比
-
-> **【2026-09-09 修订】** 原表的「✗ / 正确做法」判定已按论文 Eq.(5) 更正。
-
-| 维度 | Liu+25 代码 (`D:\v21cmFAST`) | 本 Fork (`src/py21cmfast/`) | 论文要求 (Eq.3+5) |
-|------|------------------------------|---------------------------|---------|
-| 无条件 HMF (FDM) | `dNdM_st`(CDM σ) × dndm_FDM ✓ | `unconditional_hmf`(CDM σ) × dndm_FDM ✓ | ← 同 |
-| 条件 HMF: σ(M_halo) = σ₁ | CDM σ ✓ | CDM σ ✓ | **CDM σ** |
-| 条件 HMF: σ(M_cond) = σ₂ | **FDM σ ✓** | **CDM σ ✗ 偏离** | **FDM σ** |
-| 条件 HMF: 分子 δ | δ_FDM ✓（ICs 含 $T_F$） | δ_FDM ✓ | δ_FDM |
-| 条件 HMF × dndm_FDM? | **无** ✗ | **有** ✓（`hmf.c:457`，未提交） | **乘 dndm_FDM** |
-
-**更正说明**：
-
-- 原判「σ mix 是 bug」**撤回**——混合 σ 是 Eq.(5) 的要求，Liu 代码正确。
-- 原判「Fork 的 σ(M_cond) 用 CDM σ 是 ✓」**反转**——这恰是 Fork 的偏离点。
-- Fork 已补上 Liu 缺失的 `f_FDM`（✓），但把 σ₂ 改成了 CDM σ（✗）。**两边各缺一半。**
-
-#### A.6 修正后的公式（按论文 Eq.(3)+(5)）
-
-**条件 FDM HMF 三要素同时具备**：
-
-$$\boxed{\frac{dn}{dM}\Big|_{\text{FDM}}^{\text{cond}} = f_{\text{FDM}}(M)\;\cdot\; \frac{dn}{dM}_{\text{CDM}}^{\text{cond}}\big(\nu_{\rm cond}^{\rm FDM}\big)},\qquad
-\nu_{\rm cond}^{\rm FDM} = \frac{[\delta_c - \delta_{\rm FDM}]^2}{\sigma^2_{\rm CDM}(m) - \sigma^2_{\rm FDM}(M)}$$
-
-即：
-
-1. $\sigma_1 = \sigma_{\rm CDM}(m)$（晕质量）
-2. $\sigma_2 = \sigma_{\rm FDM}(M)$（条件尺度，**含 $T_F$**）
-3. 分子用 $\delta_{\rm FDM}$
-4. 整体**再乘** $f_{\rm FDM}(M)$
-
-> **与本文档正文方案 2 的差异**：正文方案 2 主张「条件公式内部**全用 CDM σ** + 事后乘 $f_{\rm FDM}$」，
-> 与 Eq.(5) 要求 $\sigma_2$ 用 FDM σ **冲突**。本仓库照方案 2 实施后引入了上述偏离。
-> 修复时应改用本节公式，**不能**简单地把 `EvaluateSigma` 的 FDM 分支删掉（那会破坏 $\sigma_1$）。
-
-**关于方案 3（全 FDM σ 路径）**：仍不推荐——它与 Eq.(5) 的混合 σ 要求不符，且与 $f_{\rm FDM}$ 的叠加关系未经 N-body 检验。
-
-
+参数 $(a_1,b_1,a_2,b_2)$ 是质量依赖 barrier 的拟合系数。
+
+- **优点**：理论正确，和 Du+17 的 merger tree 结果一致
+- **缺点**：
+  - 需要在 `conditional_hmf` 里新增一个函数，改写 excursion set 的 barrier
+  - 工作量大，且 Du+17 的拟合公式依赖 sharp-k 滤波器，和代码现有的 top-hat 滤波器不完全兼容
+  - 估计 **2-3 个月**工作量
 
 ---
 
