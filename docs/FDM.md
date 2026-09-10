@@ -5,13 +5,13 @@
 
 ## 阅读导航
 
-| 篇章 | 内容 | 状态 |
-|---|---|---|
+| 篇章             | 内容                                                                                                            | 状态 |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- | ---- |
 | **第一篇** | HMF 通道：dndm、Eq.(3)(4)(5)、excursion set 出发点、$\sigma_1$/$\sigma_2$、Liu 源码实现、对照实验、回退记录 | 现行 |
-| **第二篇** | 冷却通道：CDM 拟合因子的依赖审计（A–E 分类） | 现行 |
-| **第三篇** | 分子冷却阈值 $m_{\rm crit}$ 的 FDM 迁移方案（含 §6 数值表，已复算验证） | 现行 |
-| **第四篇** | 一致性审计与冲突裁决、基线说明 | 现行 |
-| **第五篇** | 备选方案存档（未实施）：只改 $M_{\rm turn}$、Du+17 完整解 | 参考 |
+| **第二篇** | 冷却通道：CDM 拟合因子的依赖审计（A–E 分类）                                                                   | 现行 |
+| **第三篇** | 分子冷却阈值$m_{\rm crit}$ 的 FDM 迁移方案（含 §6 数值表，已复算验证）                                       | 现行 |
+| **第四篇** | 一致性审计与冲突裁决、基线说明                                                                                  | 现行 |
+| **第五篇** | 备选方案存档（未实施）：只改$M_{\rm turn}$、Du+17 完整解                                                      | 参考 |
 
 > 已删除的无价值内容：原第五篇（「条件 HMF 应当加 $f_{\rm FDM}$」与 2026-09-10 回退后的代码**直接矛盾**）、
 > 原第六篇的方案 2（已回退）/方案 3（不推荐）/实施建议（已作废）/文件索引/重复参考文献/
@@ -32,16 +32,16 @@
 
 ---
 
-
 # 第一篇　HMF 通道：dndm 与条件质量函数
 
 > 来源：`docs/FDM_dndm_report.md`　状态：**现行**
 
 **日期**：2026-09-09
 **事实基准**：Liu et al. 2025, *Phys. Rev. D* **112**, 103534（Eq.2–5）
+
 + Liu 源码 `D:\v21cmFAST`（v3.3.1，`ps.c` 4544 行）
-**审阅对象**：本仓库 fork（v4 开发版）
-**相关文档**：`FDM_audit_report.md`（冲突裁决与本报告的审计依据）
+  **审阅对象**：本仓库 fork（v4 开发版）
+  **相关文档**：`FDM_audit_report.md`（冲突裁决与本报告的审计依据）
 
 ---
 
@@ -69,13 +69,13 @@ FDM 的 dndm = [用 CDM σ 算出的 CDM dndm] × [FDM 压制因子 f_FDM(m)]
 
 #### 1.1 两种 HMF
 
-| | 无条件 HMF | 条件 HMF |
-|---|---|---|
-| 记号 | $dn/dm$ | $dn/dm\|_\delta$ |
-| 含义 | 全宇宙平均 | 给定局部密度 $\delta$ 时的晕分布 |
-| 依赖 | 只依赖 $m,z$ | 额外依赖格点 $\delta$ 与条件尺度 $M$ |
-| 用途 | 全局归一化、光度函数、再电离历史 ODE | 逐格点 $f_{\rm coll}$/N_ion/X 射线积分、离散采样表 |
-| fork 代码 | `unconditional_hmf`（`hmf.c:489`） | `conditional_hmf`（`hmf.c:438`） |
+|           | 无条件 HMF                             | 条件 HMF                                            |
+| --------- | -------------------------------------- | --------------------------------------------------- |
+| 记号      | $dn/dm$                              | $dn/dm\|_\delta$                                  |
+| 含义      | 全宇宙平均                             | 给定局部密度$\delta$ 时的晕分布                   |
+| 依赖      | 只依赖$m,z$                          | 额外依赖格点$\delta$ 与条件尺度 $M$             |
+| 用途      | 全局归一化、光度函数、再电离历史 ODE   | 逐格点$f_{\rm coll}$/N_ion/X 射线积分、离散采样表 |
+| fork 代码 | `unconditional_hmf`（`hmf.c:489`） | `conditional_hmf`（`hmf.c:438`）                |
 
 两者关系：条件 HMF 给出格点间的相对差异，无条件 HMF 提供全局归一化基准。
 格点物理量 = 条件积分结果 ×（全局无条件平均 / 格点条件平均），即 mean-fixing。
@@ -84,29 +84,33 @@ FDM 的 dndm = [用 CDM σ 算出的 CDM dndm] × [FDM 压制因子 f_FDM(m)]
 
 ### 2. CDM 的 dndm —— Eq.(4)
 
-$$\left.\frac{dn}{dm}\right|_{\rm CDM} = -\frac{\bar\rho_m}{m}\,f(\nu)\,\frac{d\ln\sigma}{dm}$$
+$$
+\left.\frac{dn}{dm}\right|_{\rm CDM} = -\frac{\bar\rho_m}{m}\,f(\nu)\,\frac{d\ln\sigma}{dm}
+$$
 
 #### 2.1 三个因子
 
-| 因子 | 含义 |
-|---|---|
-| $-\bar\rho_m/m$ | 数密度归一化（$\bar\rho_m$ 为平均物质密度；$1/m$ 把质量换成个数）。负号因 $d\ln\sigma/dm<0$ |
-| $d\ln\sigma/dm$ | σ 随质量的变化率。小质量 σ 大、大质量 σ 小 |
-| $f(\nu)$ | **晕多重度函数**（multiplicity function）：峰值高度 $\nu$ 处的坍缩概率密度 |
+| 因子                                                                                                                  | 含义                                                                               |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| $-\bar\rho_m/m$ | 数密度归一化（$\bar\rho_m$ 为平均物质密度；$1/m$ 把质量换成个数）。负号因 $d\ln\sigma/dm<0$ |                                                                                    |
+| $d\ln\sigma/dm$                                                                                                     | σ 随质量的变化率。小质量 σ 大、大质量 σ 小                                      |
+| $f(\nu)$                                                                                                            | **晕多重度函数**（multiplicity function）：峰值高度 $\nu$ 处的坍缩概率密度 |
 
 #### 2.2 峰值高度 ν
 
-$$\nu \equiv \frac{\delta_c}{\sigma(m,z)},\qquad \delta_c \approx 1.686$$
+$$
+\nu \equiv \frac{\delta_c}{\sigma(m,z)},\qquad \delta_c \approx 1.686
+$$
 
 - $\nu$ 大（大质量晕 / 高红移）→ 稀有 → $f(\nu)$ 小
 - $\nu$ 小（小质量晕）→ 常见
 
 #### 2.3 多重度函数的两种选择
 
-| 模型 | $f(\nu)$ | 说明 |
-|---|---|---|
-| Press-Schechter (PS) | $\sqrt{2/\pi}\,\nu\,e^{-\nu^2/2}$ | 球对称坍缩 |
-| **Sheth-Tormen (ST)** | $A\sqrt{2/\pi}\,[1+(a\nu^2)^{-p}]\sqrt{a}\,\nu\,e^{-a\nu^2/2}$ | 椭球坍缩，$a{=}0.73,\ p{=}0.175,\ A{=}0.353$ |
+| 模型                        | $f(\nu)$                                                                                                        | 说明       |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------- |
+| Press-Schechter (PS)        | $\sqrt{2/\pi}\,\nu\,e^{-\nu^2/2}$                                                                               | 球对称坍缩 |
+| **Sheth-Tormen (ST)** | $A\sqrt{2/\pi}\,[1+(a\nu^2)^{-p}]\sqrt{a}\,\nu\,e^{-a\nu^2/2}$ | 椭球坍缩，$a{=}0.73,\ p{=}0.175,\ A{=}0.353$ |            |
 
 **Liu+25 采用 Sheth-Tormen**（论文原文："the functional form of $f(\nu)$ based on the ellipsoidal collapse model is adopted"）。
 
@@ -129,37 +133,39 @@ return (-(cosmo_params_ps->OMm)*RHOcrit/M)   /* ← -ρ̄_m/m   */
 
 ### 3. FDM 的压制 —— Eq.(3)
 
-$$\left.\frac{dn}{dm}\right|_{\rm FDM}(m,z) = \underbrace{\left.\frac{dn}{dm}\right|_{\rm CDM}(m,z)}_{\text{Eq.(4)}}\;\cdot\;\underbrace{\left[1+\left(\frac{m}{M_0}\right)^{\alpha}\right]^{-2.2}}_{f_{\rm FDM}(m)}$$
+$$
+\left.\frac{dn}{dm}\right|_{\rm FDM}(m,z) = \underbrace{\left.\frac{dn}{dm}\right|_{\rm CDM}(m,z)}_{\text{Eq.(4)}}\;\cdot\;\underbrace{\left[1+\left(\frac{m}{M_0}\right)^{\alpha}\right]^{-2.2}}_{f_{\rm FDM}(m)}
+$$
 
 #### 3.1 参数
 
-| 参数 | 值 | 含义 |
-|---|---|---|
-| $M_0$ | $1.6\times10^{10}\,m_{22}^{-4/3}\,M_\odot$ | 特征压制尺度。$m_{22}$ 越小（轴子越轻）→ $M_0$ 越大 → 压制越强 |
-| $\alpha$ | $-1.1$ | 幂指数，**负值** |
-| 外指数 | $-2.2$ | Schive+16 N-body 模拟拟合 |
+| 参数       | 值                                                                                                                  | 含义                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| $M_0$    | $1.6\times10^{10}\,m_{22}^{-4/3}\,M_\odot$ | 特征压制尺度。$m_{22}$ 越小（轴子越轻）→ $M_0$ 越大 → 压制越强 |                           |
+| $\alpha$ | $-1.1$                                                                                                            | 幂指数，**负值**    |
+| 外指数     | $-2.2$                                                                                                            | Schive+16 N-body 模拟拟合 |
 
 #### 3.2 行为（为什么压制的是小质量）
 
 因 $\alpha=-1.1<0$：
 
-| 区间 | $(m/M_0)^{-1.1}$ | $f_{\rm FDM}$ | 结果 |
-|---|---|---|---|
-| $m \gg M_0$（大晕） | $\to 0$ | $\to[1+0]^{-2.2}=1$ | **无压制，回归 CDM** |
-| $m = M_0$ | $=1$ | $=2^{-2.2}\approx0.22$ | FDM 晕数约为 CDM 的 22% |
-| $m \ll M_0$（小晕） | $\to\infty$ | $\to(m/M_0)^{2.42}\to0$ | **强烈压制** |
+| 区间                  | $(m/M_0)^{-1.1}$ | $f_{\rm FDM}$           | 结果                       |
+| --------------------- | ------------------ | ------------------------- | -------------------------- |
+| $m \gg M_0$（大晕） | $\to 0$          | $\to[1+0]^{-2.2}=1$     | **无压制，回归 CDM** |
+| $m = M_0$           | $=1$             | $=2^{-2.2}\approx0.22$  | FDM 晕数约为 CDM 的 22%    |
+| $m \ll M_0$（小晕） | $\to\infty$      | $\to(m/M_0)^{2.42}\to0$ | **强烈压制**         |
 
 **物理**：FDM 的量子压力（波动力学 Jeans 尺度）阻止小尺度结构坍缩，因此小质量晕数量被压低，大质量晕不受影响。
 
 #### 3.3 数值示例
 
-| $m_{22}$ | $M_0\ [M_\odot]$ |
-|---|---|
-| 0.1 | $3.45\times10^{11}$ |
-| 0.5 | $4.03\times10^{10}$ |
-| 1.0 | $1.60\times10^{10}$ |
-| 5.0 | $1.87\times10^{9}$ |
-| 10.0 | $7.43\times10^{8}$ |
+| $m_{22}$ | $M_0\ [M_\odot]$    |
+| ---------- | --------------------- |
+| 0.1        | $3.45\times10^{11}$ |
+| 0.5        | $4.03\times10^{10}$ |
+| 1.0        | $1.60\times10^{10}$ |
+| 5.0        | $1.87\times10^{9}$  |
+| 10.0       | $7.43\times10^{8}$  |
 
 #### 3.4 代码对应
 
@@ -188,22 +194,24 @@ double dndm_FDM(double M) {
 
 $f_{\rm FDM}$ 是 Schive+16 用 N-body 模拟拟合的**比值**：
 
-$$f_{\rm FDM}(m) = \frac{(dn/dm)_{\rm FDM}^{\rm 模拟}}{(dn/dm)_{\rm CDM}^{\rm 理论}}$$
+$$
+f_{\rm FDM}(m) = \frac{(dn/dm)_{\rm FDM}^{\rm 模拟}}{(dn/dm)_{\rm CDM}^{\rm 理论}}
+$$
 
 分母是 **CDM HMF**。所以：
 
-| σ 的选择 | Eq.(4) 的结果 | 再乘 $f_{\rm FDM}$ | 判定 |
-|---|---|---|---|
-| CDM σ | 真正的 CDM HMF | 正确 | ✅ |
-| FDM σ（含 $T_F$，σ 更小 → ν 更大 → HMF 已被压低） | 已被压低 | **压了两次** | ❌ |
+| σ 的选择                                               | Eq.(4) 的结果  | 再乘$f_{\rm FDM}$ | 判定 |
+| ------------------------------------------------------- | -------------- | ------------------- | ---- |
+| CDM σ                                                  | 真正的 CDM HMF | 正确                | ✅   |
+| FDM σ（含$T_F$，σ 更小 → ν 更大 → HMF 已被压低） | 已被压低       | **压了两次**  | ❌   |
 
 #### 4.3 代码体现
 
-| 代码 | 位置 | FDM 模式行为 |
-|---|---|---|
-| fork `EvaluateSigma` | `interp_tables.c:1210` | 返回 `Sigma_InterpTable_CDM` ✅ |
-| Liu `dNdM_st` 的 σ 分支 | `ps.c:1005-1011` | 用 `Sigma_InterpTable_CDM` ✅ |
-| Liu `dNdM_conditional` 的 $\sigma_1$ | `ps.c:2255` | 用 `Sigma_InterpTable_CDM` ✅ |
+| 代码                                    | 位置                     | FDM 模式行为                     |
+| --------------------------------------- | ------------------------ | -------------------------------- |
+| fork`EvaluateSigma`                   | `interp_tables.c:1210` | 返回`Sigma_InterpTable_CDM` ✅ |
+| Liu`dNdM_st` 的 σ 分支               | `ps.c:1005-1011`       | 用`Sigma_InterpTable_CDM` ✅   |
+| Liu`dNdM_conditional` 的 $\sigma_1$ | `ps.c:2255`            | 用`Sigma_InterpTable_CDM` ✅   |
 
 **两边一致，都是对的。**
 
@@ -215,7 +223,9 @@ $$f_{\rm FDM}(m) = \frac{(dn/dm)_{\rm FDM}^{\rm 模拟}}{(dn/dm)_{\rm CDM}^{\rm 
 
 直接套 Eq.(3)：
 
-$$\left.\frac{dn}{dm}\right|_{\rm FDM}^{\rm global} = \left.\frac{dn}{dm}\right|_{\rm CDM}^{\rm global}\big(\nu_{\rm CDM}\big)\times f_{\rm FDM}(m)$$
+$$
+\left.\frac{dn}{dm}\right|_{\rm FDM}^{\rm global} = \left.\frac{dn}{dm}\right|_{\rm CDM}^{\rm global}\big(\nu_{\rm CDM}\big)\times f_{\rm FDM}(m)
+$$
 
 代码（fork `hmf.c:509`）：
 
@@ -229,13 +239,17 @@ if (matter_options_global->FDM) {
 
 条件 HMF 多一个环境维度，标准 EPS 形式：
 
-$$\left.\frac{dn}{dm}\right|_{\delta} \propto \frac{\delta_1-\delta_2}{D}\cdot\frac{2\sigma_1|d\sigma_1/dm|}{(\sigma_1^2-\sigma_2^2)^{3/2}}\cdot\exp\!\left[-\frac{(\delta_1-\delta_2)^2}{2D^2(\sigma_1^2-\sigma_2^2)}\right]$$
+$$
+\left.\frac{dn}{dm}\right|_{\delta} \propto \frac{\delta_1-\delta_2}{D}\cdot\frac{2\sigma_1|d\sigma_1/dm|}{(\sigma_1^2-\sigma_2^2)^{3/2}}\cdot\exp\!\left[-\frac{(\delta_1-\delta_2)^2}{2D^2(\sigma_1^2-\sigma_2^2)}\right]
+$$
 
 可写成 peak height 形式 $\nu_{\rm cond}^2 = \dfrac{(\delta_1-\delta_2)^2}{\sigma_1^2-\sigma_2^2}$。
 
 FDM 版：
 
-$$\boxed{\left.\frac{dn}{dm}\right|_{\rm FDM}^{\rm cond} = \underbrace{\left.\frac{dn}{dm}\right|_{\rm CDM}^{\rm cond}\big(\nu_{\rm Eq.(5)}\big)}_{\text{条件版，ν 按 Eq.(5) 取}} \times f_{\rm FDM}(m)}$$
+$$
+\boxed{\left.\frac{dn}{dm}\right|_{\rm FDM}^{\rm cond} = \underbrace{\left.\frac{dn}{dm}\right|_{\rm CDM}^{\rm cond}\big(\nu_{\rm Eq.(5)}\big)}_{\text{条件版，ν 按 Eq.(5) 取}} \times f_{\rm FDM}(m)}
+$$
 
 **形式与无条件完全一样**：CDM dndm × $f_{\rm FDM}$。
 区别只在于那个「CDM dndm」是**条件版**的，且 ν 按 Eq.(5) 取。
@@ -255,10 +269,10 @@ $$\boxed{\left.\frac{dn}{dm}\right|_{\rm FDM}^{\rm cond} = \underbrace{\left.\fr
 
 把 $\delta_R$ 看成随"方差距离" $\sigma^2$ 演化的**随机游走**（布朗运动）：
 
-| | 起点 | 问题 |
-|---|---|---|
-| **无条件 HMF** | 从原点 $(0,\,0)$ 出发 | 首次穿越壁垒 $\delta_c$ 发生在哪个 $\sigma^2(m)$？→ 晕质量 $m$ |
-| **条件 HMF** | 从 $(\sigma_2^2,\,\delta_0)$ 出发 | 已知环境尺度 $M$ 处密度超标为 $\delta_0$，继续向小尺度走，首次穿越 $\delta_c$ 的尺度？→ 子晕质量 $m$ |
+|                      | 起点                               | 问题                                                                                                         |
+| -------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **无条件 HMF** | 从原点$(0,\,0)$ 出发             | 首次穿越壁垒$\delta_c$ 发生在哪个 $\sigma^2(m)$？→ 晕质量 $m$                                         |
+| **条件 HMF**   | 从$(\sigma_2^2,\,\delta_0)$ 出发 | 已知环境尺度$M$ 处密度超标为 $\delta_0$，继续向小尺度走，首次穿越 $\delta_c$ 的尺度？→ 子晕质量 $m$ |
 
 **条件 HMF 的"条件"就体现在起点不是原点**——环境的涨落已经实现、被固定为 $\delta_0$，
 不再是随机的。
@@ -268,22 +282,28 @@ $$\boxed{\left.\frac{dn}{dm}\right|_{\rm FDM}^{\rm cond} = \underbrace{\left.\fr
 从 $(\sigma_2^2,\delta_0)$ 出发，在方差距离 $\Delta\sigma^2=\sigma_1^2-\sigma_2^2$ 内
 首达 $\delta_c$ 的概率，就是布朗运动的转移概率：
 
-$$f(\delta_c,\sigma_1^2\mid\delta_0,\sigma_2^2)=\frac{1}{\sqrt{2\pi(\sigma_1^2-\sigma_2^2)}}\exp\!\left[-\frac{(\delta_c-\delta_0)^2}{2(\sigma_1^2-\sigma_2^2)}\right]$$
+$$
+f(\delta_c,\sigma_1^2\mid\delta_0,\sigma_2^2)=\frac{1}{\sqrt{2\pi(\sigma_1^2-\sigma_2^2)}}\exp\!\left[-\frac{(\delta_c-\delta_0)^2}{2(\sigma_1^2-\sigma_2^2)}\right]
+$$
 
 配上质量权重 $|d\sigma_1^2/dm|$，得到条件质量函数（PS 形式）：
 
-$$\left.\frac{dn}{dm}\right|_{\delta} \propto \frac{\delta_c-\delta_0}{D}\cdot\frac{2\sigma_1|d\sigma_1/dm|}{(\sigma_1^2-\sigma_2^2)^{3/2}}\cdot\exp\!\left[-\frac{(\delta_c-\delta_0)^2}{2D^2(\sigma_1^2-\sigma_2^2)}\right]$$
+$$
+\left.\frac{dn}{dm}\right|_{\delta} \propto \frac{\delta_c-\delta_0}{D}\cdot\frac{2\sigma_1|d\sigma_1/dm|}{(\sigma_1^2-\sigma_2^2)^{3/2}}\cdot\exp\!\left[-\frac{(\delta_c-\delta_0)^2}{2D^2(\sigma_1^2-\sigma_2^2)}\right]
+$$
 
 #### 6.3 $\sigma_1$ 与 $\sigma_2$ 分别表征什么
 
-| | 数学定义 | **物理表征** |
-|---|---|---|
-| $\sigma_1^2=\sigma^2(m)$ | 用**晕质量** $m$ 对应尺度平滑的密度场方差 | **晕自身尺度**的涨落总幅度——决定坍缩有多"难" |
-| $\sigma_2^2=\sigma^2(M)$ | 用**条件尺度** $M$ 平滑的密度场方差 | **环境已实现**的那部分涨落——已由 $\delta_0$ 固定，不再是随机的 |
+|                            | 数学定义                                          | **物理表征**                                                       |
+| -------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------ |
+| $\sigma_1^2=\sigma^2(m)$ | 用**晕质量** $m$ 对应尺度平滑的密度场方差 | **晕自身尺度**的涨落总幅度——决定坍缩有多"难"                     |
+| $\sigma_2^2=\sigma^2(M)$ | 用**条件尺度** $M$ 平滑的密度场方差       | **环境已实现**的那部分涨落——已由 $\delta_0$ 固定，不再是随机的 |
 
 **两者之差才是关键量**：
 
-$$\boxed{\Delta\sigma^2 \equiv \sigma_1^2-\sigma_2^2}$$
+$$
+\boxed{\Delta\sigma^2 \equiv \sigma_1^2-\sigma_2^2}
+$$
 
 = 从尺度 $M$ 走到尺度 $m$ 之间**新增的小尺度功率**（方差增量）。
 
@@ -291,8 +311,10 @@ $$\boxed{\Delta\sigma^2 \equiv \sigma_1^2-\sigma_2^2}$$
 
 对应地，peak height 就是"跨越难度"：
 
-$$\nu_{\rm cond}^2 = \frac{(\delta_c-\delta_0)^2}{\sigma_1^2-\sigma_2^2}
-= \frac{(\text{还需跨越的高度})^2}{(\text{可用的方差距离})}$$
+$$
+\nu_{\rm cond}^2 = \frac{(\delta_c-\delta_0)^2}{\sigma_1^2-\sigma_2^2}
+= \frac{(\text{还需跨越的高度})^2}{(\text{可用的方差距离})}
+$$
 
 分母越小（$\Delta\sigma^2$ 小）→ $\nu_{\rm cond}$ 越大 → 越难形成 → 条件 HMF 越小。
 
@@ -329,28 +351,30 @@ $\nu^2=\delta_c^2/\sigma^2(m)$ —— 正是 §2.2 的定义。**条件 HMF 是�
 
 #### 6.6 21cmFAST 中的具体对应
 
-| 符号 | 在 21cmFAST 中 |
-|---|---|
-| $M$（条件尺度） | 格点暗物质质量 $M_{\rm cond}=\rho_{\rm crit,0}\Omega_m V_{\rm cell}/N_{\rm pix}$ |
-| $\delta_0$ | 该格点的密度超标（来自密度场） |
-| $m$ | 子晕质量，积分范围 $[M_{\rm min},\ M_{\rm cond}]$ |
-| $\sigma_2$ | `EvaluateSigma(log(M_cond))` —— 每格点一个值 |
-| $\sigma_1$ | 被积函数内，随积分变量 $\ln M$ 变化 |
+| 符号              | 在 21cmFAST 中                                                                    |
+| ----------------- | --------------------------------------------------------------------------------- |
+| $M$（条件尺度） | 格点暗物质质量$M_{\rm cond}=\rho_{\rm crit,0}\Omega_m V_{\rm cell}/N_{\rm pix}$ |
+| $\delta_0$      | 该格点的密度超标（来自密度场）                                                    |
+| $m$             | 子晕质量，积分范围$[M_{\rm min},\ M_{\rm cond}]$                                |
+| $\sigma_2$      | `EvaluateSigma(log(M_cond))` —— 每格点一个值                                  |
+| $\sigma_1$      | 被积函数内，随积分变量$\ln M$ 变化                                              |
 
 即：**给定每个格点的密度，算出该格点内的晕分布**。
 这是逐格点 $f_{\rm coll}$ / N_ion / X 射线积分与离散采样的核心输入。
 
 #### 6.7 FDM 下三者如何取值（对应 Eq.(5)）
 
-| 量 | 取值 | 理由 |
-|---|---|---|
-| 分子 $\delta_c-\delta_{\rm FDM}$ | 用 **FDM 场**的 $\delta_0$ | 环境就是真实的 FDM 密度场 |
-| $\sigma_1^2=\sigma^2_{\rm CDM}(m)$ | **CDM** | 晕坍缩统计走 CDM 基准，避免与 $f_{\rm FDM}$ 双重计数 |
-| $\sigma_2^2=\sigma^2_{\rm FDM}(M)$ | **FDM** | 环境尺度的涨落属真实 FDM 场 |
+| 量                                   | 取值                              | 理由                                                  |
+| ------------------------------------ | --------------------------------- | ----------------------------------------------------- |
+| 分子$\delta_c-\delta_{\rm FDM}$    | 用**FDM 场**的 $\delta_0$ | 环境就是真实的 FDM 密度场                             |
+| $\sigma_1^2=\sigma^2_{\rm CDM}(m)$ | **CDM**                     | 晕坍缩统计走 CDM 基准，避免与$f_{\rm FDM}$ 双重计数 |
+| $\sigma_2^2=\sigma^2_{\rm FDM}(M)$ | **FDM**                     | 环境尺度的涨落属真实 FDM 场                           |
 
 于是方差增量为
 
-$$\Delta\sigma^2 = \sigma^2_{\rm CDM}(m)-\sigma^2_{\rm FDM}(M)$$
+$$
+\Delta\sigma^2 = \sigma^2_{\rm CDM}(m)-\sigma^2_{\rm FDM}(M)
+$$
 
 **物理直觉**：
 
@@ -369,7 +393,9 @@ $$\Delta\sigma^2 = \sigma^2_{\rm CDM}(m)-\sigma^2_{\rm FDM}(M)$$
 
 > "We will work with the ansatz where the peak height variable that affects the FDM HMF in Eq. (3) **via the $(dn/dm)|_{\rm CDM}$ term** should be written as
 
-$$\nu^2 = \frac{[\delta_c - \delta_{\rm FDM}(z)]^2}{\sigma^2_{\rm CDM}(m,z) - \sigma^2_{\rm FDM}(M,z)}$$
+$$
+\nu^2 = \frac{[\delta_c - \delta_{\rm FDM}(z)]^2}{\sigma^2_{\rm CDM}(m,z) - \sigma^2_{\rm FDM}(M,z)}
+$$
 
 > where $m$ is the halo mass, $M$ is the total mass within the comoving volume under consideration, $\delta_{\rm FDM}(z)$ is the linear-theory FDM overdensity within this volume at redshift $z$, and $\sigma^2_{\rm FDM}(M,z)$ is the variance of the linear-theory FDM density field smoothed on mass scale $M$."
 
@@ -379,11 +405,11 @@ $$\nu^2 = \frac{[\delta_c - \delta_{\rm FDM}(z)]^2}{\sigma^2_{\rm CDM}(m,z) - \s
 
 #### 7.1 三要素
 
-| 位置 | 取值 | 理由 |
-|---|---|---|
-| **分子** | $\delta_{\rm FDM}$ | 环境就是真实的 FDM 线性密度场 |
-| **$\sigma_1$** | $\sigma_{\rm CDM}(m)$ | 避免与 $f_{\rm FDM}$ 双重计数（§4） |
-| **$\sigma_2$** | $\sigma_{\rm FDM}(M)$ | 环境尺度的涨落是真实 FDM 场 |
+| 位置                   | 取值                    | 理由                                  |
+| ---------------------- | ----------------------- | ------------------------------------- |
+| **分子**         | $\delta_{\rm FDM}$    | 环境就是真实的 FDM 线性密度场         |
+| **$\sigma_1$** | $\sigma_{\rm CDM}(m)$ | 避免与$f_{\rm FDM}$ 双重计数（§4） |
+| **$\sigma_2$** | $\sigma_{\rm FDM}(M)$ | 环境尺度的涨落是真实 FDM 场           |
 
 论文总结句：
 
@@ -395,10 +421,10 @@ $$\nu^2 = \frac{[\delta_c - \delta_{\rm FDM}(z)]^2}{\sigma^2_{\rm CDM}(m,z) - \s
 
 两条规则作用于**不同对象**：
 
-| | 角色 | 取值 | 为什么 |
-|---|---|---|---|
-| $\sigma_1$ | 晕坍缩统计 | **CDM** | 若用 FDM σ，Eq.(4) 本身已被压低，再乘 $f_{\rm FDM}$ = 双重计数 |
-| $\sigma_2$ | 环境参数 | **FDM** | 与坍缩统计无关；$f_{\rm FDM}$ 是 $m$ 的函数，而 $\sigma_2$ 在给定 $M$ 时是常数，两者**不可能重叠** |
+|                                                                                                                                                            | 角色       | 取值          | 为什么                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------- | ---------------------------------------------------------------- |
+| $\sigma_1$                                                                                                                                               | 晕坍缩统计 | **CDM** | 若用 FDM σ，Eq.(4) 本身已被压低，再乘$f_{\rm FDM}$ = 双重计数 |
+| $\sigma_2$ | 环境参数 | **FDM** | 与坍缩统计无关；$f_{\rm FDM}$ 是 $m$ 的函数，而 $\sigma_2$ 在给定 $M$ 时是常数，两者**不可能重叠** |            |               |                                                                  |
 
 **判据**：凡是参与「晕形成概率」的量 → 走 CDM 基准；
 凡是描述「环境场本身」的量 → 用真实 FDM 场。
@@ -424,10 +450,10 @@ Liu 的处理很巧妙：**$\sigma_2$ 处一行 FDM 代码都没有，却自动�
 
 #### 8.1 两张 σ 表
 
-| 表 | 由谁计算 | CDM 模式 | FDM 模式 |
-|---|---|---|---|
-| `Sigma_InterpTable`（主表） | `sigma_z0`（用 `power_in_k`） | CDM σ | **FDM σ（含 $T_F$）** |
-| `Sigma_InterpTable_CDM` | `sigma_z0_pre`（用 `power_in_k_cdm`） | CDM σ | CDM σ |
+| 表                            | 由谁计算                                  | CDM 模式 | FDM 模式                       |
+| ----------------------------- | ----------------------------------------- | -------- | ------------------------------ |
+| `Sigma_InterpTable`（主表） | `sigma_z0`（用 `power_in_k`）         | CDM σ   | **FDM σ（含 $T_F$）** |
+| `Sigma_InterpTable_CDM`     | `sigma_z0_pre`（用 `power_in_k_cdm`） | CDM σ   | CDM σ                         |
 
 建表：`ps.c:1694`（`Sigma_InterpTable_CDM[i] = sigma_z0_pre(...)`）
 配套 CDM 功率谱：`ps.c:310`（`power_in_k_cdm`）
@@ -478,13 +504,13 @@ sigma2 = Sigma_InterpTable[MassBin] + ( Mmax - MassBinLow )*(...) *inv_mass_bin_
 
 #### 9.1 当前状态（回退后）
 
-| 项 | 状态 | 位置 |
-|---|---|---|
-| $\sigma_1$ = CDM σ | ✅ | `EvaluateSigma`→`Sigma_InterpTable_CDM`（`interp_tables.c:1210`） |
-| **$\sigma_2$ = FDM σ** | ✅ **已修复** | `EvaluateSigmaConditional`（`interp_tables.c:1252`），7 处调用 |
-| 分子 $\delta_{\rm FDM}$ | ✅ | `cosmology.c:297-300` |
-| 无条件 HMF × $f_{\rm FDM}$ | ✅ | `hmf.c`（`unconditional_hmf`） |
-| **条件 HMF 不乘 $f_{\rm FDM}$** | ✅ **已回退** | `hmf.c`（`conditional_hmf`）——与 Liu 一致 |
+| 项                                      | 状态               | 位置                                                                     |
+| --------------------------------------- | ------------------ | ------------------------------------------------------------------------ |
+| $\sigma_1$ = CDM σ                   | ✅                 | `EvaluateSigma`→`Sigma_InterpTable_CDM`（`interp_tables.c:1210`） |
+| **$\sigma_2$ = FDM σ**         | ✅**已修复** | `EvaluateSigmaConditional`（`interp_tables.c:1252`），7 处调用       |
+| 分子$\delta_{\rm FDM}$                | ✅                 | `cosmology.c:297-300`                                                  |
+| 无条件 HMF ×$f_{\rm FDM}$            | ✅                 | `hmf.c`（`unconditional_hmf`）                                       |
+| **条件 HMF 不乘 $f_{\rm FDM}$** | ✅**已回退** | `hmf.c`（`conditional_hmf`）——与 Liu 一致                          |
 
 **结论：全局路径与条件路径现在均与 Liu 原码一致，无偏离。**
 
@@ -512,12 +538,12 @@ $\sigma_1$ 与 $\sigma_2$ **共用此函数**（调用点 `interp_tables.c:317/4
 
 #### 9.3 三方对照
 
-| 要素 | Liu 论文 | Liu 代码 `D:\v21cmFAST` | fork |
-|---|:-:|:-:|:-:|
-| $\sigma_1$=CDM σ | 要求 | ✅ `ps.c:2255` | ✅ |
-| $\sigma_2$=FDM σ | 要求 | ✅ `ps.c:2845` | **❌ 退化为 CDM** |
-| 分子 $\delta_{\rm FDM}$ | 要求 | ✅ | ✅ |
-| × $f_{\rm FDM}(m)$ | 要求 | **❌ 缺失** | ✅ `hmf.c:457` |
+| 要素                     | Liu 论文 | Liu 代码`D:\v21cmFAST` |          fork          |
+| ------------------------ | :------: | :----------------------: | :---------------------: |
+| $\sigma_1$=CDM σ      |   要求   |     ✅`ps.c:2255`     |           ✅           |
+| $\sigma_2$=FDM σ      |   要求   |     ✅`ps.c:2845`     | **❌ 退化为 CDM** |
+| 分子$\delta_{\rm FDM}$ |   要求   |            ✅            |           ✅           |
+| ×$f_{\rm FDM}(m)$     |   要求   |    **❌ 缺失**    |     ✅`hmf.c:457`     |
 
 **一句话：Liu 代码缺 $f_{\rm FDM}$，fork 补上了但丢了 $\sigma_2$。两边各缺一半。**
 
@@ -551,20 +577,20 @@ v4 把 σ 取值收敛到统一函数时，顺手加了「FDM 用 CDM σ」（�
 **实测设置**：HII_DIM=64、BOX_LEN=200 → $M_{\rm cond}=1.21\times10^{12}M_\odot$，$z=15$。
 对比三种配置：
 
-| 配置 | $\sigma_2$ | $\times f_{\rm FDM}$ | 说明 |
-|---|---|---|---|
-| **A**（fork **回退前**） | CDM σ | ✅ | 2026-09-10 已回退，见 §9.7 |
-| **B**（Liu 原码等效） | FDM σ | ❌ | **当前 fork 采用此配置** |
-| **C**（论文 Eq.3+5 完整解） | FDM σ | ✅ | 严格按论文，未采用 |
+| 配置                                 | $\sigma_2$ | $\times f_{\rm FDM}$ | 说明                           |
+| ------------------------------------ | ------------ | ---------------------- | ------------------------------ |
+| **A**（fork **回退前**） | CDM σ       | ✅                     | 2026-09-10 已回退，见 §9.7    |
+| **B**（Liu 原码等效）          | FDM σ       | ❌                     | **当前 fork 采用此配置** |
+| **C**（论文 Eq.3+5 完整解）    | FDM σ       | ✅                     | 严格按论文，未采用             |
 
 **实测结果**：
 
-| $m_{22}$ | $M_0$ | $\sigma_2$ 相对差异 | A/C 净偏差（晕总数密度） |
-|---|---|---|---|
-| 10.0 | $7.4\times10^{8}$ | −0.0008 % | **1.0000** |
-| 1.0 | $1.6\times10^{10}$ | −0.0323 % | **0.9999** |
-| 0.5 | $4.0\times10^{10}$ | −0.0983 % | **0.9997** |
-| 0.1 | $3.5\times10^{11}$ | −1.4926 % | **0.9950** |
+| $m_{22}$ | $M_0$              | $\sigma_2$ 相对差异 | A/C 净偏差（晕总数密度） |
+| ---------- | -------------------- | --------------------- | ------------------------ |
+| 10.0       | $7.4\times10^{8}$  | −0.0008 %            | **1.0000**         |
+| 1.0        | $1.6\times10^{10}$ | −0.0323 %            | **0.9999**         |
+| 0.5        | $4.0\times10^{10}$ | −0.0983 %            | **0.9997**         |
+| 0.1        | $3.5\times10^{11}$ | −1.4926 %            | **0.9950**         |
 
 **结论**：
 
@@ -610,6 +636,7 @@ double EvaluateSigmaConditional(double lnM);  // σ₂：始终读主表（FDM �
 **当初这么改的理由**（出处：`docs/FDM_MCG_modeling.md` §3 方案 2，114–125 行）：
 
 > 答案是**有，而且是物理自洽的**（见附录 A.2）：
+>
 > - `f_FDM(M)` 是 Schive+16 拟合的 FDM/CDM HMF 比值，**完整吸收一切 FDM 效应**
 > - 条件 HMF 和无条件 HMF 描述**同一个物理过程**——halo collapse——只是前者多了环境约束
 > - FDM 量子压力对 halo collapse 的抑制是**普适的、不依赖环境的**
@@ -627,12 +654,12 @@ double EvaluateSigmaConditional(double lnM);  // σ₂：始终读主表（FDM �
 
 **改动清单**：
 
-| 文件 | 改动 |
-|---|---|
-| `src/py21cmfast/src/hmf.c` | `conditional_hmf` 移除 `result *= dndm_FDM(exp(lnM))`，改为详尽注释记录原理由与回退依据 |
-| `src/py21cmfast/src/interp_tables.c` | **新增** `EvaluateSigmaConditional()`（始终读主表 → FDM 模式下为 FDM σ）；7 处 $\sigma_2$/$\sigma_{\rm cond}$ 调用改用之（`317/435/518/599/632/692/741`） |
-| `src/py21cmfast/src/interp_tables.h` | 声明 `EvaluateSigmaConditional` |
-| `src/py21cmfast/src/_functionprototypes_wrapper.h` | 声明 `EvaluateSigmaConditional` |
+| 文件                                                 | 改动                                                                                                                                                                      |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/py21cmfast/src/hmf.c`                         | `conditional_hmf` 移除 `result *= dndm_FDM(exp(lnM))`，改为详尽注释记录原理由与回退依据                                                                               |
+| `src/py21cmfast/src/interp_tables.c`               | **新增** `EvaluateSigmaConditional()`（始终读主表 → FDM 模式下为 FDM σ）；7 处 $\sigma_2$/$\sigma_{\rm cond}$ 调用改用之（`317/435/518/599/632/692/741`） |
+| `src/py21cmfast/src/interp_tables.h`               | 声明`EvaluateSigmaConditional`                                                                                                                                          |
+| `src/py21cmfast/src/_functionprototypes_wrapper.h` | 声明`EvaluateSigmaConditional`                                                                                                                                          |
 
 $\sigma_1$（`dNdM_conditional_EPS` 内 `hmf.c:288`）**保持不变**，仍走 `EvaluateSigma`（FDM→CDM 表），
 避免与 Eq.(5) 要求冲突。
@@ -643,39 +670,41 @@ $\sigma_1$（`dNdM_conditional_EPS` 内 `hmf.c:288`）**保持不变**，仍走 
 
 **回退后条件路径三要素**（与 Liu 一致）：
 
-$$\sigma_1=\sigma_{\rm CDM}(m),\qquad \sigma_2=\sigma_{\rm FDM}(M),\qquad
+$$
+\sigma_1=\sigma_{\rm CDM}(m),\qquad \sigma_2=\sigma_{\rm FDM}(M),\qquad
 \nu^2=\frac{[\delta_c-\delta_{\rm FDM}]^2}{\sigma_1^2-\sigma_2^2},\qquad
-\text{不乘 } f_{\rm FDM}$$
+\text{不乘 } f_{\rm FDM}
+$$
 
 ---
 
 ### 10. 速查表
 
-| 问题 | 答案 |
-|---|---|
-| FDM 的 dndm 怎么算？ | CDM dndm（**用 CDM σ**）× $f_{\rm FDM}(m)$ |
-| σ 用 CDM 还是 FDM？ | **CDM**（唯一例外：条件 HMF 的 $\sigma_2$ 用 FDM） |
-| 为什么不用 FDM σ？ | 会与 $f_{\rm FDM}$ 双重计数 |
-| $f_{\rm FDM}$ 压制大质量还是小质量？ | **小质量**（$\alpha=-1.1<0$） |
-| 条件 HMF 要不要乘 $f_{\rm FDM}$？ | **要**（Eq.(3) 要求；且闭合性严格成立） |
-| $\sigma_1$ 用什么？ | CDM σ |
-| $\sigma_2$ 用什么？ | FDM σ（fork 当前退化为 CDM，是唯一偏离） |
-| 分子 δ 用什么？ | FDM 场的 δ（代码自动满足） |
-| md 的行号引用准确吗？ | **准确**（以 `D:\v21cmFAST` ps.c 4544 行为准） |
-| 基线在哪？ | `git tag baseline/pre-fdm` → `d8f67b76` |
+| 问题                                                                           | 答案                                                       |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| FDM 的 dndm 怎么算？                                                           | CDM dndm（**用 CDM σ**）× $f_{\rm FDM}(m)$       |
+| σ 用 CDM 还是 FDM？                                                           | **CDM**（唯一例外：条件 HMF 的 $\sigma_2$ 用 FDM） |
+| 为什么不用 FDM σ？                                                            | 会与$f_{\rm FDM}$ 双重计数                               |
+| $f_{\rm FDM}$ 压制大质量还是小质量？ | **小质量**（$\alpha=-1.1<0$） |                                                            |
+| 条件 HMF 要不要乘$f_{\rm FDM}$？                                             | **要**（Eq.(3) 要求；且闭合性严格成立）              |
+| $\sigma_1$ 用什么？                                                          | CDM σ                                                     |
+| $\sigma_2$ 用什么？                                                          | FDM σ（fork 当前退化为 CDM，是唯一偏离）                  |
+| 分子 δ 用什么？                                                               | FDM 场的 δ（代码自动满足）                                |
+| md 的行号引用准确吗？                                                          | **准确**（以 `D:\v21cmFAST` ps.c 4544 行为准）     |
+| 基线在哪？                                                                     | `git tag baseline/pre-fdm` → `d8f67b76`               |
 
 ---
 
 ### 11. 常见误区
 
-| 误区 | 纠正 |
-|---|---|
-| 「$f_{\rm FDM}$ 是压制大质量晕的」 | 错。$\alpha=-1.1<0$，压制**小质量**晕 |
-| 「条件 HMF 乘 $f_{\rm FDM}$ 会破坏闭合关系」 | 错。$f_{\rm FDM}(M)$ 只依赖 $M$、不依赖 $\delta$，可提出 $\delta$ 平均之外：$\langle$cond$_{\rm CDM}\times f\rangle_\delta=f\times\langle$cond$_{\rm CDM}\rangle_\delta=f\times$uncond$_{\rm CDM}=$uncond$_{\rm FDM}$，闭合严格成立 |
-| 「σ₁ 用 CDM、σ₂ 用 FDM 是 bug」 | 错。这正是 Eq.(5) 的明确要求 |
-| 「σ₁ 和 σ₂ 应统一为 CDM σ」 | 错。$\sigma_2$ 必须是 FDM σ |
-| 「FDM 效应主要来自 HMF」 | 不准确。$M_{\rm sol}\ll M_{\rm hm}$（$m_{22}{=}1$：$1.5\times10^7$ vs $1.6\times10^{10}$），**冷却通道才是主导，且目前完全缺失** |
-| 「用 `/home/dministrat/v21cmFAST` 核对 Liu 行号」 | 错。那是本仓库重构版（`1945bf0`，4423 行，含独立 `fdm.c`），要用 `D:\v21cmFAST`（4544 行） |
+| 误区                                                                                                                                                                                                                                                                                                  | 纠正                                                                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 「$f_{\rm FDM}$ 是压制大质量晕的」 | 错。$\alpha=-1.1<0$，压制**小质量**晕                                                                                                                                                                                                                  |                                                                                                                                                |
+| 「条件 HMF 乘$f_{\rm FDM}$ 会破坏闭合关系」 | 错。$f_{\rm FDM}(M)$ 只依赖 $M$、不依赖 $\delta$，可提出 $\delta$ 平均之外：$\langle$cond$_{\rm CDM}\times f\rangle_\delta=f\times\langle$cond$_{\rm CDM}\rangle_\delta=f\times$uncond$_{\rm CDM}=$uncond$_{\rm FDM}$，闭合严格成立 |                                                                                                                                                |
+| 「σ₁ 用 CDM、σ₂ 用 FDM 是 bug」                                                                                                                                                                                                                                                                   | 错。这正是 Eq.(5) 的明确要求                                                                                                                   |
+| 「σ₁ 和 σ₂ 应统一为 CDM σ」                                                                                                                                                                                                                                                                      | 错。$\sigma_2$ 必须是 FDM σ                                                                                                                 |
+| 「FDM 效应主要来自 HMF」                                                                                                                                                                                                                                                                              | 不准确。$M_{\rm sol}\ll M_{\rm hm}$（$m_{22}{=}1$：$1.5\times10^7$ vs $1.6\times10^{10}$），**冷却通道才是主导，且目前完全缺失** |
+| 「用`/home/dministrat/v21cmFAST` 核对 Liu 行号」                                                                                                                                                                                                                                                    | 错。那是本仓库重构版（`1945bf0`，4423 行，含独立 `fdm.c`），要用 `D:\v21cmFAST`（4544 行）                                               |
 
 ---
 
@@ -683,31 +712,31 @@ $$\sigma_1=\sigma_{\rm CDM}(m),\qquad \sigma_2=\sigma_{\rm FDM}(M),\qquad
 
 #### Liu 源码 `D:\v21cmFAST`（v3.3.1，`ps.c` 4544 行）
 
-| 符号 | 位置 |
-|---|---|
-| `dndm_FDM` | `ps.c:987` |
-| `dNdM_st` | `ps.c:995` |
-| `dNdM_st_F`（= `dNdM_st` × `dndm_FDM`） | `ps.c:1032-1034` |
-| `power_in_k_cdm` | `ps.c:310` |
-| `dNdM_conditional` | `ps.c:2240-2286` |
-| $\sigma_1$ 的 FDM 分支 | `ps.c:2251-2256` |
-| $\sigma_2 = $ `Sigma_InterpTable[...]` | `ps.c:2845`（另 2930 / 3072 / 3397 / 3507） |
-| `Sigma_InterpTable_CDM` 建表 | `ps.c:1684, 1694` |
+| 符号                                           | 位置                                          |
+| ---------------------------------------------- | --------------------------------------------- |
+| `dndm_FDM`                                   | `ps.c:987`                                  |
+| `dNdM_st`                                    | `ps.c:995`                                  |
+| `dNdM_st_F`（= `dNdM_st` × `dndm_FDM`） | `ps.c:1032-1034`                            |
+| `power_in_k_cdm`                             | `ps.c:310`                                  |
+| `dNdM_conditional`                           | `ps.c:2240-2286`                            |
+| $\sigma_1$ 的 FDM 分支                       | `ps.c:2251-2256`                            |
+| $\sigma_2 = $`Sigma_InterpTable[...]`        | `ps.c:2845`（另 2930 / 3072 / 3397 / 3507） |
+| `Sigma_InterpTable_CDM` 建表                 | `ps.c:1684, 1694`                           |
 
 #### 本仓库 fork
 
-| 符号 | 位置 |
-|---|---|
-| `T_F` | `src/py21cmfast/src/fdm.c:35` |
-| `dndm_FDM` | `src/py21cmfast/src/fdm.c:51` |
-| `sigma_z0_pre` / `dsigmasqdm_z0_pre` | `fdm.c:92` / `fdm.c:150` |
-| `conditional_hmf`（含 ×`dndm_FDM`） | `src/py21cmfast/src/hmf.c:438-462`（**未提交**） |
-| `unconditional_hmf`（含 ×`dndm_FDM`） | `src/py21cmfast/src/hmf.c:509` |
-| $T_F$ 接入功率谱 | `src/py21cmfast/src/cosmology.c:297-300` |
-| `EvaluateSigma` | `src/py21cmfast/src/interp_tables.c:1206-1217` |
-| `EvaluatedSigmasqdm` | `interp_tables.c:1219-1231` |
-| $\sigma_2$/$\sigma_{\rm cond}$ 调用（7 处） | `interp_tables.c:317/435/518/599/632/692/741` |
-| Python 参数 `m22` / `FDM` / `HMF_FINDEX` | `src/py21cmfast/wrapper/inputs.py:456 / 687 / 689` |
+| 符号                                            | 位置                                                     |
+| ----------------------------------------------- | -------------------------------------------------------- |
+| `T_F`                                         | `src/py21cmfast/src/fdm.c:35`                          |
+| `dndm_FDM`                                    | `src/py21cmfast/src/fdm.c:51`                          |
+| `sigma_z0_pre` / `dsigmasqdm_z0_pre`        | `fdm.c:92` / `fdm.c:150`                             |
+| `conditional_hmf`（含 ×`dndm_FDM`）        | `src/py21cmfast/src/hmf.c:438-462`（**未提交**） |
+| `unconditional_hmf`（含 ×`dndm_FDM`）      | `src/py21cmfast/src/hmf.c:509`                         |
+| $T_F$ 接入功率谱                              | `src/py21cmfast/src/cosmology.c:297-300`               |
+| `EvaluateSigma`                               | `src/py21cmfast/src/interp_tables.c:1206-1217`         |
+| `EvaluatedSigmasqdm`                          | `interp_tables.c:1219-1231`                            |
+| $\sigma_2$/$\sigma_{\rm cond}$ 调用（7 处） | `interp_tables.c:317/435/518/599/632/692/741`          |
+| Python 参数`m22` / `FDM` / `HMF_FINDEX`   | `src/py21cmfast/wrapper/inputs.py:456 / 687 / 689`     |
 
 #### 基线
 
@@ -733,9 +762,9 @@ B = Liu 原码等效（$\sigma_2$=FDM σ，无 $f_{\rm FDM}$）
 
 $M_0=1.6\times10^{10}m_{22}^{-4/3}$。扫描 $m_{22}$ 与积分下限 $M_{\min}$：
 
-| $M_{\min}/M_0$ | 0.1 | 1 | 10 | 100 | 1000 |
-|---|---|---|---|---|---|
-| **A/B** | ~0.01 | ~0.3–0.4 | ~0.90 | ~0.99 | ~0.999 |
+| $M_{\min}/M_0$ | 0.1   | 1         | 10    | 100   | 1000   |
+| ---------------- | ----- | --------- | ----- | ----- | ------ |
+| **A/B**    | ~0.01 | ~0.3–0.4 | ~0.90 | ~0.99 | ~0.999 |
 
 **A/B 只依赖 $M_{\min}/M_0$，与 $m_{22}$ 本身无关**（各组数据落在同一条曲线上）。
 
@@ -750,18 +779,20 @@ $M_0=1.6\times10^{10}m_{22}^{-4/3}$。扫描 $m_{22}$ 与积分下限 $M_{\min}$
 
 21cmFAST 的 mean-fixing：
 
-$$\text{格点物理量} = \text{条件积分}(\delta)\times\frac{\text{全局无条件平均}}{\text{格点条件平均}}$$
+$$
+\text{格点物理量} = \text{条件积分}(\delta)\times\frac{\text{全局无条件平均}}{\text{格点条件平均}}
+$$
 
 两者无条件路径**都含** $f_{\rm FDM}$，故分子相同。对 $\delta$ 扫描（$m_{22}{=}10$，$M_{\min}=10^9$，$M_{\min}/M_0=1.35$）：
 
-| $\delta$ | ∫A (fork) | ∫B (Liu) | **A/B 原始** | **A/B mean-fix 后** |
-|---|---|---|---|---|
-| −0.50 | 1.706e−07 | 4.758e−07 | 0.359 | 0.933 |
-| −0.20 | 2.115e−05 | 5.680e−05 | 0.372 | 0.969 |
-| **0.00** | 3.420e−04 | 8.901e−04 | 0.384 | **1.0000** |
-| 0.20 | 3.900e−03 | 9.785e−03 | 0.399 | 1.038 |
-| 0.50 | 7.690e−02 | 1.802e−01 | 0.427 | 1.111 |
-| 1.00 | 1.559e+00 | 3.152e+00 | 0.495 | 1.287 |
+| $\delta$     | ∫A (fork) | ∫B (Liu)  | **A/B 原始** | **A/B mean-fix 后** |
+| -------------- | ---------- | ---------- | ------------------ | ------------------------- |
+| −0.50         | 1.706e−07 | 4.758e−07 | 0.359              | 0.933                     |
+| −0.20         | 2.115e−05 | 5.680e−05 | 0.372              | 0.969                     |
+| **0.00** | 3.420e−04 | 8.901e−04 | 0.384              | **1.0000**          |
+| 0.20           | 3.900e−03 | 9.785e−03 | 0.399              | 1.038                     |
+| 0.50           | 7.690e−02 | 1.802e−01 | 0.427              | 1.111                     |
+| 1.00           | 1.559e+00  | 3.152e+00  | 0.495              | 1.287                     |
 
 > $\delta=2.0$ 处出现负值（条件 HMF 在大 $\delta$ 下数值失效），已排除。
 
@@ -775,11 +806,11 @@ $$\text{格点物理量} = \text{条件积分}(\delta)\times\frac{\text{全局�
 
 #### 13.3 结论：三层原因
 
-| 层次 | 现象 | 原因 |
-|---|---|---|
-| **上游量**<br>(功率谱、无条件 HMF) | **完全一致** | 两者实现相同：$T_F$ 都接入 `power_in_k`；无条件 HMF 都乘 $f_{\rm FDM}$。这是 Liu 论文 Fig.1、Fig.2 复现成功的原因 |
-| **全局平均量**<br>(δ≈0，全局 21cm 信号、电离历史) | **完全一致** | mean-fixing 把条件结果锚定到无条件结果（含 $f_{\rm FDM}$），归一化差异被完全吸收 |
-| **起伏量**<br>(高 δ 区、小尺度功率谱) | **有差异**<br>(δ=0.5→11%，δ=1→29%) | $f_{\rm FDM}$ 是 $M$ 依赖的形状因子，mean-fixing 只能补一个标量，补不回形状 |
+| 层次                                                  | 现象                                     | 原因                                                                                                                    |
+| ----------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **上游量**(功率谱、无条件 HMF)                  | **完全一致**                       | 两者实现相同：$T_F$ 都接入 `power_in_k`；无条件 HMF 都乘 $f_{\rm FDM}$。这是 Liu 论文 Fig.1、Fig.2 复现成功的原因 |
+| **全局平均量**(δ≈0，全局 21cm 信号、电离历史) | **完全一致**                       | mean-fixing 把条件结果锚定到无条件结果（含$f_{\rm FDM}$），归一化差异被完全吸收                                       |
+| **起伏量**(高 δ 区、小尺度功率谱)              | **有差异**(δ=0.5→11%，δ=1→29%) | $f_{\rm FDM}$ 是 $M$ 依赖的形状因子，mean-fixing 只能补一个标量，补不回形状                                         |
 
 **因此**：你复现论文上游图时"一模一样"是**正确且预期的**——
 那些图验证的是功率谱与无条件 HMF，本来就不涉及条件 HMF 的分歧。
@@ -807,8 +838,6 @@ Liu 条件路径未显式乘 $f_{\rm FDM}$。但由本节实验可知：
 
 **21cmFAST**：Mesinger, Furlanetto & Cen 2011, MNRAS 411, 955 · Park et al. 2019, MNRAS 484, 933
 
-
-
 # 第二篇　冷却通道：CDM 拟合因子依赖审计
 
 > 来源：`docs/FDM_cooling_report.md`　状态：**现行**
@@ -817,6 +846,7 @@ Liu 条件路径未显式乘 $f_{\rm FDM}$。但由本节实验可知：
 > 处理的是 **HMF 通道**（条件/无条件 HMF 的 FDM 处理）与 Liu+25 论文的一致性审计。
 >
 > 两文的分工：
+>
 > - **本文（`FDM_cooling_report.md`）**：冷却链路中 CDM 校准因子的依赖审计（A–E 分类）
 > - **审计报告（`FDM_audit_report.md`）**：HMF 通道的三方对照与冲突裁决
 >
@@ -861,13 +891,13 @@ Nion_ConditionalM_MINI = ∫ [nion_fraction × conditional_hmf] d(lnM)
 
 ### 3. 分类标准
 
-| 类别 | 定义 | 判断准则 |
-|------|------|---------|
-| **A** | 物理常数，无模拟校准 | 数值来自量子/分子/原子物理或宇宙学定义 |
-| **B** | CDM 模拟校准，但描述的是 DM-无关的物理 | 函数形式描述气体化学/辐射转移/流体力学 |
-| **C** | CDM 校准，且隐含 CDM 晕结构假设 | 校准依赖 NFW 密度轮廓等 CDM 特有属性 |
-| **D** | 唯象参数，调参即可，无需改公式 | 描述晕内天体物理，不论 CDM/FDM 同类晕不应有系统差异，但最优值会因 dndm_FDM 而不同 |
-| **E** | 物理尺度远大于 FDM 截止尺度 | FDM 量子压力影响 < 0.1%，可忽略 |
+| 类别        | 定义                                   | 判断准则                                                                          |
+| ----------- | -------------------------------------- | --------------------------------------------------------------------------------- |
+| **A** | 物理常数，无模拟校准                   | 数值来自量子/分子/原子物理或宇宙学定义                                            |
+| **B** | CDM 模拟校准，但描述的是 DM-无关的物理 | 函数形式描述气体化学/辐射转移/流体力学                                            |
+| **C** | CDM 校准，且隐含 CDM 晕结构假设        | 校准依赖 NFW 密度轮廓等 CDM 特有属性                                              |
+| **D** | 唯象参数，调参即可，无需改公式         | 描述晕内天体物理，不论 CDM/FDM 同类晕不应有系统差异，但最优值会因 dndm_FDM 而不同 |
+| **E** | 物理尺度远大于 FDM 截止尺度            | FDM 量子压力影响 < 0.1%，可忽略                                                   |
 
 ---
 
@@ -875,12 +905,12 @@ Nion_ConditionalM_MINI = ∫ [nion_fraction × conditional_hmf] d(lnM)
 
 #### 4.1 基础物理参数（A类）
 
-| 参数 | 默认值/公式 | 物理来源 | 代码路径 |
-|------|-----------|---------|---------|
-| `TtoM(z, T, μ)` | `7030.97/h · √(Ωm(z)/(Ωm·Δc)) · [T/(μ(1+z))]^3/2` | Virial 定理 (Barkana & Loeb 2001) | `cosmology.c:671` |
-| `deltac_nonlinear(z)` | `18π² + 82[Ωm(z)-1] − 39[Ωm(z)-1]²` | 球对称坍缩 (Bryan & Norman 1998) | `cosmology.c:658` |
-| `atomic_cooling_threshold` | `TtoM(z, 10⁴ K, 0.59)` | Lyα 激发能 10.2 eV | `thermochem.c:278` |
-| `molecular_cooling_threshold` | `TtoM(z, 600 K, 1.22)` | H₂ 转动-振动冷却 = 绝热膨胀率 | `thermochem.c:280` |
+| 参数                            | 默认值/公式                                                 | 物理来源                          | 代码路径             |
+| ------------------------------- | ----------------------------------------------------------- | --------------------------------- | -------------------- |
+| `TtoM(z, T, μ)`              | `7030.97/h · √(Ωm(z)/(Ωm·Δc)) · [T/(μ(1+z))]^3/2` | Virial 定理 (Barkana & Loeb 2001) | `cosmology.c:671`  |
+| `deltac_nonlinear(z)`         | `18π² + 82[Ωm(z)-1] − 39[Ωm(z)-1]²`                 | 球对称坍缩 (Bryan & Norman 1998)  | `cosmology.c:658`  |
+| `atomic_cooling_threshold`    | `TtoM(z, 10⁴ K, 0.59)`                                   | Lyα 激发能 10.2 eV               | `thermochem.c:278` |
+| `molecular_cooling_threshold` | `TtoM(z, 600 K, 1.22)`                                    | H₂ 转动-振动冷却 = 绝热膨胀率    | `thermochem.c:280` |
 
 > **判定**：全部不依赖 CDM。TtoM 中 Δc 的 Bryan-Norman 拟合系数虽然从 SCDM N-body 获得，但球坍模型在 FDM virial 尺度（量子压力亚主导）依旧适用，差异可忽略。
 
@@ -888,31 +918,33 @@ Nion_ConditionalM_MINI = ∫ [nion_fraction × conditional_hmf] d(lnM)
 
 **实现**（`thermochem.c:282`）：
 
-$$M_{\text{crit}}^{\text{LW}}(z) = \underbrace{3.314\times 10^7 (1+z)^{-1.5}}_{\text{mcrit\_noLW}} \times \underbrace{(1 + A_{\text{LW}} J_{21}^{B_{\text{LW}}})}_{\text{LW 倍增}} \times \underbrace{\left(1 + A_{\text{VCB}} \frac{v_{\text{cb}}}{\sigma_{\text{VCB}}}\right)^{B_{\text{VCB}}}}_{\text{VCB 倍增}}$$
+$$
+M_{\text{crit}}^{\text{LW}}(z) = \underbrace{3.314\times 10^7 (1+z)^{-1.5}}_{\text{mcrit\_noLW}} \times \underbrace{(1 + A_{\text{LW}} J_{21}^{B_{\text{LW}}})}_{\text{LW 倍增}} \times \underbrace{\left(1 + A_{\text{VCB}} \frac{v_{\text{cb}}}{\sigma_{\text{VCB}}}\right)^{B_{\text{VCB}}}}_{\text{VCB 倍增}}
+$$
 
 ##### 论文校准链
 
-| 论文 | 贡献 | DM 模型 |
-|------|------|:--:|
-| Stacy, Bromm & Loeb (2011, MNRAS 413, 172) | 首次 CDM+gas 分子冷却 cosmological 模拟 | **CDM** |
-| Greif et al. (2011, ApJ 737, 75) | 同上，独立验证 | **CDM** |
-| Fialkov, Barkana, Tseliakhovich & Hirata (2012, MNRAS 424, 1335) | 拟合 Stacy+11/Greif+11 模拟，给出 M_min(v_cb, z) | **CDM 校准** |
-| Visbal et al. (2015, Nature 528, 357) | 从 Fialkov+12 提取最优拟合：3.314×10⁷ (1+z)^(-1.5) | **CDM 校准** |
-| Schauer, Glover, Klessen & Clark (2020, MNRAS 507, 1775) | 高分辨率 CDM+gas 模拟，发现 LW 反馈更弱（H₂ 自屏蔽被低估） | **CDM** |
-| Muñoz et al. (2021, arXiv:2110.13919) | 综合多项模拟，推荐 A_LW=2.0, BETA_LW=0.6 | **CDM 综合** |
+| 论文                                                             | 贡献                                                        |      DM 模型      |
+| ---------------------------------------------------------------- | ----------------------------------------------------------- | :----------------: |
+| Stacy, Bromm & Loeb (2011, MNRAS 413, 172)                       | 首次 CDM+gas 分子冷却 cosmological 模拟                     |   **CDM**   |
+| Greif et al. (2011, ApJ 737, 75)                                 | 同上，独立验证                                              |   **CDM**   |
+| Fialkov, Barkana, Tseliakhovich & Hirata (2012, MNRAS 424, 1335) | 拟合 Stacy+11/Greif+11 模拟，给出 M_min(v_cb, z)            | **CDM 校准** |
+| Visbal et al. (2015, Nature 528, 357)                            | 从 Fialkov+12 提取最优拟合：3.314×10⁷ (1+z)^(-1.5)        | **CDM 校准** |
+| Schauer, Glover, Klessen & Clark (2020, MNRAS 507, 1775)         | 高分辨率 CDM+gas 模拟，发现 LW 反馈更弱（H₂ 自屏蔽被低估） |   **CDM**   |
+| Muñoz et al. (2021, arXiv:2110.13919)                           | 综合多项模拟，推荐 A_LW=2.0, BETA_LW=0.6                    | **CDM 综合** |
 
 > 代码注释 (`thermochem.c:272-278`) 原文：*"correction follows Schauer+20, fit jointly to LW feedback and relative velocities. They find weaker effect of LW feedback than before (Stacy+11, Greif+11, etc.) due to HII self shielding. this follows Visbal+15, which is taken as the optimal fit from Fialkov+12 which was calibrated with the simulations of Stacy+11 and Greif+11"*
 
 ##### 逐参数判定
 
-| 参数 | 默认值 | 类别 | 理由 | 建议 |
-|------|--------|:--:|------|------|
-| `mcrit_noLW` | `3.314×10⁷ (1+z)^(-1.5)` | **C** | 从 CDM NFW 晕的 H₂ 形成模拟中拟合。FDM soliton 平核需更大 M_vir 达到同等中心气体密度 | **FDM 下变化最大的参数。** 建议预留 `FDM_COOLING_BOOST` 占位（默认 1.0） |
-| `A_LW` | 2.0 | **B** | H₂ 光解离倍增因子。光解离截面是分子物理常数，但数值来自 CDM 模拟拟合 | 暂保留，待 FDM+gas 模拟校准 |
-| `BETA_LW` | 0.6 | **B** | 同上 | 同上 |
-| `A_VCB` | 1.0 | **B** | v_cb 对气体吸积的影响是流体力学，不依赖 DM。Muñoz+21 确认 A_VCB=1.0 "agrees between different sims" | 暂保留 |
-| `BETA_VCB` | 1.8 | **B** | 同上 | 暂保留 |
-| `σ_VCB` | 29.0 km/s | **E** | BAO 尺度（~100 Mpc）≫ FDM 截止尺度（~kpc），T_F(k) 影响 < 0.1% | 不修改 |
+| 参数           | 默认值                       |    类别    | 理由                                                                                                 | 建议                                                                             |
+| -------------- | ---------------------------- | :---------: | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `mcrit_noLW` | `3.314×10⁷ (1+z)^(-1.5)` | **C** | 从 CDM NFW 晕的 H₂ 形成模拟中拟合。FDM soliton 平核需更大 M_vir 达到同等中心气体密度                | **FDM 下变化最大的参数。** 建议预留 `FDM_COOLING_BOOST` 占位（默认 1.0） |
+| `A_LW`       | 2.0                          | **B** | H₂ 光解离倍增因子。光解离截面是分子物理常数，但数值来自 CDM 模拟拟合                                | 暂保留，待 FDM+gas 模拟校准                                                      |
+| `BETA_LW`    | 0.6                          | **B** | 同上                                                                                                 | 同上                                                                             |
+| `A_VCB`      | 1.0                          | **B** | v_cb 对气体吸积的影响是流体力学，不依赖 DM。Muñoz+21 确认 A_VCB=1.0 "agrees between different sims" | 暂保留                                                                           |
+| `BETA_VCB`   | 1.8                          | **B** | 同上                                                                                                 | 暂保留                                                                           |
+| `σ_VCB`     | 29.0 km/s                    | **E** | BAO 尺度（~100 Mpc）≫ FDM 截止尺度（~kpc），T_F(k) 影响 < 0.1%                                      | 不修改                                                                           |
 
 > `inputs.py:1242-1250` 存档了两个版本：Machacek+01（A_LW=22.86, BETA_LW=0.47）和 Muñoz+21（A_LW=2.0, BETA_LW=0.6）。代码默认使用后者。
 
@@ -920,39 +952,42 @@ $$M_{\text{crit}}^{\text{LW}}(z) = \underbrace{3.314\times 10^7 (1+z)^{-1.5}}_{\
 
 **实现**（`thermochem.c:26-30,302-307`，SM13 参数化）：
 
-$$M_{\text{crit}}^{\text{RE}} = M_0 \times (B \cdot \Gamma_{\text{HII}})^{a} \times \left(\frac{1+z}{10}\right)^{b} \times \left[1 - \left(\frac{1+z}{1+z_{\text{IN}}}\right)^{c}\right]^{d}$$
+$$
+M_{\text{crit}}^{\text{RE}} = M_0 \times (B \cdot \Gamma_{\text{HII}})^{a} \times \left(\frac{1+z}{10}\right)^{b} \times \left[1 - \left(\frac{1+z}{1+z_{\text{IN}}}\right)^{c}\right]^{d}
+$$
 
 其中：
 
-| 符号 | 代码常量 | 默认值 | 含义 |
-|------|---------|--------|------|
-| $M_0$ | `REION_SM13_M0` | $3\times 10^9\; M_\odot$ | 参考特征质量 |
-| $a$ | `REION_SM13_A` | 0.17 | 电离背景 $\Gamma$ 的幂律指数 |
-| $b$ | `REION_SM13_B` | −2.1 | $(1+z)/10$ 的幂律指数 |
-| $c$ | `REION_SM13_C` | 2.0 | 再电离进度 $1-(1+z)/(1+z_{\text{IN}})$ 的内指数 |
-| $d$ | `REION_SM13_D` | 2.5 | 再电离进度项的外指数 |
-| $B$ | `HALO_BIAS` | 2.0 | 晕偏置常数近似 |
+| 符号    | 代码常量          | 默认值                     | 含义                                             |
+| ------- | ----------------- | -------------------------- | ------------------------------------------------ |
+| $M_0$ | `REION_SM13_M0` | $3\times 10^9\; M_\odot$ | 参考特征质量                                     |
+| $a$   | `REION_SM13_A`  | 0.17                       | 电离背景$\Gamma$ 的幂律指数                    |
+| $b$   | `REION_SM13_B`  | −2.1                      | $(1+z)/10$ 的幂律指数                          |
+| $c$   | `REION_SM13_C`  | 2.0                        | 再电离进度$1-(1+z)/(1+z_{\text{IN}})$ 的内指数 |
+| $d$   | `REION_SM13_D`  | 2.5                        | 再电离进度项的外指数                             |
+| $B$   | `HALO_BIAS`     | 2.0                        | 晕偏置常数近似                                   |
 
 ##### 校准背景
 
-| 论文 | 内容 | DM 模型 |
-|------|------|:--:|
-| Sobacchi & Mesinger 2013, Paper I (MNRAS 432, L51) | 球对称坍缩 + **固定 NFW 暗物质势阱** + 气体流体力学 + UVB 加热，测量 M_min(Γ, z) | **CDM NFW 势** |
-| Sobacchi & Mesinger 2013, Paper II (MNRAS 432, 3340) | 将 Paper I 的 M_min 参数化引入半数值再电离模拟 | **CDM** |
+| 论文                                                 | 内容                                                                                   |       DM 模型       |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------- | :------------------: |
+| Sobacchi & Mesinger 2013, Paper I (MNRAS 432, L51)   | 球对称坍缩 +**固定 NFW 暗物质势阱** + 气体流体力学 + UVB 加热，测量 M_min(Γ, z) | **CDM NFW 势** |
+| Sobacchi & Mesinger 2013, Paper II (MNRAS 432, 3340) | 将 Paper I 的 M_min 参数化引入半数值再电离模拟                                         |    **CDM**    |
 
 **核心问题**：SM13 使用固定 NFW 势阱（尖点 ρ ∝ r⁻¹）。FDM soliton 平核 → 同一 M_vir 的中心引力势更浅 → 气体更容易被 UVB 光致蒸发吹散 → M_min 更大。
 
-| 参数 | 默认值 | 类别 | 理由 | 建议 |
-|------|--------|:--:|------|------|
-| M₀ | 3×10⁹ M_sun | **C** | CDM NFW 势阱校准 | FDM 下 M₀ 可能偏小 |
-| a=0.17, b=-2.1, c=2.0, d=2.5 | — | **C** | 同上 | FDM 下可能不同 |
-| HALO_BIAS | 2.0 | **C** | 常数近似，CDM 下约 2-3。FDM 小晕被压制后有效偏置更高，但差异 < 近似本身误差 | 不修改 |
+| 参数                         | 默认值        |    类别    | 理由                                                                        | 建议                |
+| ---------------------------- | ------------- | :---------: | --------------------------------------------------------------------------- | ------------------- |
+| M₀                          | 3×10⁹ M_sun | **C** | CDM NFW 势阱校准                                                            | FDM 下 M₀ 可能偏小 |
+| a=0.17, b=-2.1, c=2.0, d=2.5 | —            | **C** | 同上                                                                        | FDM 下可能不同      |
+| HALO_BIAS                    | 2.0           | **C** | 常数近似，CDM 下约 2-3。FDM 小晕被压制后有效偏置更高，但差异 < 近似本身误差 | 不修改              |
 
 #### 4.4 晕内天体物理参数（D 类）
 
 **D 类定义**：描述晕内部 gas → 恒星 → 辐射转换效率的参数。它们的公式本身描述的是晕内天体物理，不依赖 DM 类型——FDM 影响的是「有多少晕存在」（通过 `conditional_hmf × dndm_FDM`），而不改变「单个晕是否发光」的物理规律。
 
 **与 C 类的本质区别**：
+
 - **C 类**（如 mcrit_noLW）：公式是 CDM NFW 晕结构 → 气体冷却的映射，FDM soliton 平核下**这条映射本身就变了**，需要 FDM+gas 模拟重新校准公式系数。
 - **D 类**（如 F_STAR10, M_TURN）：公式描述恒星形成效率等晕内物理，不论 CDM 还是 FDM 晕，同类晕的 f* 不应有系统差异。所以**公式不需要因 FDM 改写**。但由于 dndm_FDM 砍掉了小晕，同样的参数值在 FDM 下会输出更少的 Nion——如果想匹配同样的观测数据，你自然会为 FDM 选一组不同的参数值。**这是手动调参的行为，不是公式层面的 FDM 修正。**
 
@@ -971,28 +1006,28 @@ double nion_fraction_mini(double lnM, void *param_struct) {
 }
 ```
 
-| 参数字段 | Python 参数 | 默认值 | 在式中的角色 | 判定 |
-|----------|------------|--------|-------------|:--:|
-| `p.f_star_norm` | `F_STAR7_MINI` | `F_STAR10 − 3×ALPHA_STAR` | log f*(M=10⁷ M_sun)：分子冷却晕的恒星形成效率归一化 | **D** |
-| `p.alpha_star` | `ALPHA_STAR_MINI` | `= ALPHA_STAR` | f*(M) ∝ M^α 的幂律指数 | **D** |
-| `p.f_esc_norm` | `F_ESC7_MINI` | 10⁻² | log f_esc(M=10⁷ M_sun)：电离光子逃逸分数 | **D** |
-| `p.alpha_esc` | `ALPHA_ESC` | — | f_esc(M) 的幂律指数（与 ACG 共用） | **D** |
-| `p.Mturn_mcg` | LW+VCB+SM13 联合计算 | 见 4.2/4.3 | exp(−M_turn/M)：低质量端指数截断 | **B/C** |
-| `p.Mturn_upper` | `acg_thresh` | z-dependent (T_vir=10⁴ K) | exp(−M/M_acg)：高质量端截断（超出分子冷却范围） | **A** |
-| — | `L_X_MINI` | `= L_X` | X 射线光度 / SFR（`scaling_relations.c:62`），用于 `Xray_General()` | **D** |
-| — | `M_TURN` | 10^8.7 M_sun | ACG 的 SN/光加热截断质量（`scaling_relations.c:80`，仅 ACG 路径使用） | **D** |
-| — | `ION_Tvir_MIN` | 10^4.7 K | 电离源积分下限（`hmf.c:1262`），FDM 的影响在 HMF 中已囊括 | **D** |
-| — | `F_H2_SHIELD` | 0.0 | H₂ 自屏蔽因子（`inputs.py:1237-1240`），分子云内部物理，与宿主晕 DM 类型无关 | **B** |
+| 参数字段          | Python 参数          | 默认值                        | 在式中的角色                                                                    |     判定     |
+| ----------------- | -------------------- | ----------------------------- | ------------------------------------------------------------------------------- | :-----------: |
+| `p.f_star_norm` | `F_STAR7_MINI`     | `F_STAR10 − 3×ALPHA_STAR` | log f*(M=10⁷ M_sun)：分子冷却晕的恒星形成效率归一化                            |  **D**  |
+| `p.alpha_star`  | `ALPHA_STAR_MINI`  | `= ALPHA_STAR`              | f*(M) ∝ M^α 的幂律指数                                                        |  **D**  |
+| `p.f_esc_norm`  | `F_ESC7_MINI`      | 10⁻²                        | log f_esc(M=10⁷ M_sun)：电离光子逃逸分数                                       |  **D**  |
+| `p.alpha_esc`   | `ALPHA_ESC`        | —                            | f_esc(M) 的幂律指数（与 ACG 共用）                                              |  **D**  |
+| `p.Mturn_mcg`   | LW+VCB+SM13 联合计算 | 见 4.2/4.3                    | exp(−M_turn/M)：低质量端指数截断                                               | **B/C** |
+| `p.Mturn_upper` | `acg_thresh`       | z-dependent (T_vir=10⁴ K)    | exp(−M/M_acg)：高质量端截断（超出分子冷却范围）                                |  **A**  |
+| —                | `L_X_MINI`         | `= L_X`                     | X 射线光度 / SFR（`scaling_relations.c:62`），用于 `Xray_General()`         |  **D**  |
+| —                | `M_TURN`           | 10^8.7 M_sun                  | ACG 的 SN/光加热截断质量（`scaling_relations.c:80`，仅 ACG 路径使用）         |  **D**  |
+| —                | `ION_Tvir_MIN`     | 10^4.7 K                      | 电离源积分下限（`hmf.c:1262`），FDM 的影响在 HMF 中已囊括                     |  **D**  |
+| —                | `F_H2_SHIELD`      | 0.0                           | H₂ 自屏蔽因子（`inputs.py:1237-1240`），分子云内部物理，与宿主晕 DM 类型无关 |  **B**  |
 
 #### 4.5 HMF / 结构形成参数
 
-| 参数 | 默认值 | 类别 | 校准来源 | 判定 |
-|------|--------|:--:|------|:--:|
+| 参数                              | 默认值            |     类别     | 校准来源                                           |                                      判定                                      |
+| --------------------------------- | ----------------- | :-----------: | -------------------------------------------------- | :----------------------------------------------------------------------------: |
 | ST HMF (a=0.73, p=0.175, A=0.353) | `hmf.c:269-281` | **B/C** | Sheth & Tormen 2001, 从 Jenkins+01 CDM N-body 校准 | CDM σ + ST 拟合 + dndm_FDM 是 FDM 文献标准 (Schive+16, Du+17, Liu+25)，不修改 |
-| EPS 条件质量函数 | `hmf.c:285-298` | **A** | Bond+91 / Lacey & Cole 93 | 纯统计框架，不依赖 DM 类型 |
-| dndm_FDM | `fdm.c:51-55` | **—** | Schive+16 SP 模拟 | **已实现 ✓** |
-| HMF_FINDEX | -1.1 | **—** | Schive+16 拟合 | **已实现 ✓** |
-| m22 | — | **—** | FDM 粒子质量 | **用户输入** |
+| EPS 条件质量函数                  | `hmf.c:285-298` |  **A**  | Bond+91 / Lacey & Cole 93                          |                           纯统计框架，不依赖 DM 类型                           |
+| dndm_FDM                          | `fdm.c:51-55`   | **—** | Schive+16 SP 模拟                                  |                              **已实现 ✓**                              |
+| HMF_FINDEX                        | -1.1              | **—** | Schive+16 拟合                                     |                              **已实现 ✓**                              |
+| m22                               | —                | **—** | FDM 粒子质量                                       |                               **用户输入**                               |
 
 > **关于 dndm_FDM 的命名**：代码注释中的 "high-mass cutoff" 是误导性的。实际负指数 -1.1 压制的是 **小质量晕**（M ≪ M₀ → f(M) → 0），应理解为 "low-mass suppression"。
 
@@ -1026,18 +1061,19 @@ Nion_ConditionalM_MINI
 
 #### 6.1 按优先级排序
 
-| 优先级 | 参数 | 类别 | 行动 |
-|:--:|------|:--:|------|
-| **P0** | dndm_FDM | — | **已完成** — `conditional_hmf` 和 `unconditional_hmf` 均已接入 |
-| **P1** | mcrit_noLW (3.314×10⁷) | C | **最大不确定性** — 建议预留 `FDM_COOLING_BOOST` 乘法因子（默认 1.0），待 FDM+gas 模拟数据重新校准 |
-| **P1** | SM13 reionization_feedback 参数 | C | 从 CDM NFW 势校准，FDM 平核下光致蒸发更有效，M₀ 和 a/b/c/d 可能需要重校 |
-| **P2** | A_LW, BETA_LW, A_VCB, BETA_VCB | B | 暂保留 CDM 校准值，待 FDM+gas 模拟验证 |
-| **P3** | M_TURN, F_STAR7_MINI 等 | D | 晕内天体物理公式不需要 FDM 修正；在 FDM 下如需匹配同一组观测数据，这些参数的手动取值会与 CDM 不同 |
-| **不修改** | A, E 类全部参数 | A/E | 物理常数或尺度分离，不受 FDM 影响 |
+|      优先级      | 参数                            | 类别 | 行动                                                                                                       |
+| :--------------: | ------------------------------- | :--: | ---------------------------------------------------------------------------------------------------------- |
+|   **P0**   | dndm_FDM                        |  —  | **已完成** — `conditional_hmf` 和 `unconditional_hmf` 均已接入                                  |
+|   **P1**   | mcrit_noLW (3.314×10⁷)        |  C  | **最大不确定性** — 建议预留 `FDM_COOLING_BOOST` 乘法因子（默认 1.0），待 FDM+gas 模拟数据重新校准 |
+|   **P1**   | SM13 reionization_feedback 参数 |  C  | 从 CDM NFW 势校准，FDM 平核下光致蒸发更有效，M₀ 和 a/b/c/d 可能需要重校                                   |
+|   **P2**   | A_LW, BETA_LW, A_VCB, BETA_VCB  |  B  | 暂保留 CDM 校准值，待 FDM+gas 模拟验证                                                                     |
+|   **P3**   | M_TURN, F_STAR7_MINI 等         |  D  | 晕内天体物理公式不需要 FDM 修正；在 FDM 下如需匹配同一组观测数据，这些参数的手动取值会与 CDM 不同          |
+| **不修改** | A, E 类全部参数                 | A/E | 物理常数或尺度分离，不受 FDM 影响                                                                          |
 
 #### 6.2 架构正确性确认
 
 冷却管线中的两条链路是独立串联的：
+
 - **`conditional_hmf`**：通过 `dndm_FDM` 决定了 FDM 下有多少晕存在（**一阶效应，已实现**）
 - **`nion_fraction`**：决定了给定晕是否发光（冷却/反馈物理，需要评估 CDM 校准依赖）
 
@@ -1056,8 +1092,6 @@ FDM 的量子压力通过**通道 1**（减少晕的数量，dndm_FDM）已经�
 **CDM 结构形成/宇宙学**：Barkana & Loeb 2001, Phys. Rept. 349, 125 · Bryan & Norman 1998, ApJ 495, 80 · Jenkins et al. 2001, MNRAS 321, 372 · Sheth & Tormen 2001, MNRAS 323, 1 · Tseliakhovich & Hirata 2010, PRD 82, 083520
 
 **21cmFAST**：Park et al. 2018, MNRAS 484, 933
-
-
 
 # 第三篇　分子冷却阈值 mcrit 的 FDM 迁移
 
@@ -1127,14 +1161,57 @@ $$
 
 这是 $m_{\rm crit} \propto (1+z)^{-1.5}$ 的来源 [9]。但仅温度不足以完全确定前置因子。
 
+> **【2026-09-10 注】** 上式的 $T_{\rm cool}\approx600$ K 是**冷却函数本身有效**的温度下限；
+> 而实际拟合对应的维里温度为 $T_{\rm vir}\approx1007$ K（见 §3.3.1），**高于** 600 K。
+>
+> 原因：冷却能否真正驱动坍缩，不只取决于温度，还须同时满足 $t_{\rm cool}<t_{\rm ff}$
+> 与足够的 H₂ 丰度（§3.2）。低质量晕气体密度低、H₂ 丰度小，
+> 即便温度越过 600 K 也未必冷却得动——这就把有效阈值推高到 $10^3$ K 量级。
+
 #### 3.2 非平衡 H₂ 化学 + 冷却竞争
 
-临界质量还需满足两个条件同时成立 [3]：
+> **【2026-09-10 补充】** 原版只给了 $t_{\rm form}$，未给出另外三个时标，也未说明
+> 两个条件如何给出**质量下限**。此处补齐。
 
-1. **H₂ 形成时标短于 Hubble 时标**：$t_{\rm form}(H_2) < t_H$，否则在宇宙膨胀稀释之前积累不到足够丰度
-2. **冷却时标短于自由落体时标**：$t_{\rm cool} < t_{\rm ff}$，否则气体绝热加热压倒辐射冷却
+##### 3.2.1 四个时标
 
-H₂ 形成通道为 ${\rm H}^- \to {\rm H}_2$ [4]：
+临界质量由四个时标的竞争决定：
+
+| 时标 | 表达式 | 说明 |
+|---|---|---|
+| **自由落体** | $t_{\rm ff}=\sqrt{\dfrac{3\pi}{32G\rho}}$ | 维里化晕的 $\rho\propto\Delta_c\rho_{\rm bg}\propto(1+z)^3$，**与晕质量无关** |
+| **冷却** | $t_{\rm cool}=\dfrac{(3/2)nk_BT}{\Lambda_{\rm H_2}}$，$\Lambda_{\rm H_2}\propto n_{\rm H}^2$ | 因 $\Lambda\propto n^2$，故 $t_{\rm cool}\propto\dfrac{T}{n_{\rm H}x_{\rm H_2}}$ |
+| **Hubble** | $t_H=H(z)^{-1}$ | 宇宙膨胀时标 |
+| **H₂ 形成** | $t_{\rm form}=\dfrac{1}{k_{{\rm H}^-}x_e n_{\rm H}}$ | 见下 |
+
+> 关于 $t_{\rm ff}$ 与质量无关：维里化后晕的**平均**密度只由 $\Delta_c(z)$ 与背景密度决定，
+> 与 $M$ 无关。这一点是把临界条件归结为"温度阈值"的关键。
+
+##### 3.2.2 为什么这两个条件给出**质量下限**
+
+需同时满足 [3]：
+
+1. **$t_{\rm form}<t_H$**：否则宇宙膨胀稀释之前积累不到足够 H₂ 丰度
+2. **$t_{\rm cool}<t_{\rm ff}$**：否则气体绝热压缩加热压倒辐射冷却，无法坍缩
+
+对条件 2 做标度分析：$t_{\rm ff}$ 只依赖 $z$，而
+
+$$T_{\rm vir}\propto M^{2/3}(1+z)\quad\Rightarrow\quad M\ \text{越小}\ \Rightarrow\ T_{\rm vir}\ \text{越低}$$
+
+H₂ 是**转动–振动跃迁**冷却，其激发态布居随温度呈类指数衰减。当 $T_{\rm vir}$ 降到
+$\sim10^3$ K 以下时，$\Lambda_{\rm H_2}$ 骤降 → $t_{\rm cool}$ 急剧变长 → 越过
+$t_{\rm cool}=t_{\rm ff}$ 的临界点。
+
+因此 $t_{\rm cool}=t_{\rm ff}$ **定义**了 $M_{\rm crit}$：**质量大于它才能有效冷却**。
+条件 1 是 H₂ 丰度的独立约束。
+
+> **关键推论**：由于 $t_{\rm ff}$ 与 $M$ 无关，这个临界条件本质上等价于
+> "**$T_{\rm vir}$ 达到某个临界值**"。这直接连到 §3.3——Fialkov+12 的拟合
+> 正对应 $T_{\rm crit}\approx10^3$ K。§3.2 与 §3.3 是同一物理的两种表述。
+
+##### 3.2.3 H₂ 形成通道
+
+原初气体中 H₂ 主要经 ${\rm H}^-$ 催化形成 [4]：
 
 $$
 \begin{aligned}
@@ -1143,7 +1220,10 @@ x_{{\rm H}_2} &= \min\!\left(\frac{t_H}{t_{\rm form}},\;0.5\right), \quad t_{\rm
 \end{aligned}
 $$
 
-其中 $x_{{\rm H}_2} \le 0.5$ 的上限来自 ${\rm H}^-$ 催化循环的化学计量约束（每两个 H 原子产生一个 H₂ 分子后需再生 ${\rm H}^-$）。
+- $x_e$：自由电子分数（原初气体中残余电离，是 H⁻ 形成的催化剂）
+- $n_{\rm H}$：氢核数密度，由晕内气体密度决定
+- $x_{{\rm H}_2}\le0.5$ 的上限来自 ${\rm H}^-$ 催化循环的**化学计量约束**
+  （每两个 H 原子产生一个 H₂ 分子后需再生 ${\rm H}^-$）
 
 #### 3.3 Fialkov+12 的模拟校准
 
@@ -1153,7 +1233,56 @@ $$
 \boxed{m_{\rm crit}^{\rm CDM}(z) = 3.314 \times 10^7\,M_\odot \cdot (1+z)^{-1.5}}
 $$
 
-校准点：$z \sim 20$–$30$ 处，$T_{\rm vir} \gtrsim 120$ K 的 NFW 晕。在这个质量处，中心 NFW 尖点密度恰好足够让 H₂ 冷却在 Hubble 时标内触发 runaway collapse。公式在 21cmFAST 的 `thermochem.c:287-289` 中以 `mcrit_noLW` 变量实现。前置因子 $3.314 \times 10^7$ 继承了 NFW 尖点密度假设 [1]，因此隐式地编码了 CDM 的剖面结构（见 §5.10 的讨论）。
+> **【2026-09-10 更正】** 原版写「$T_{\rm vir}\gtrsim120$ K」**有误**，正确为
+> $T_{\rm vir}\approx1.0\times10^3$ K（见下方数值反解）。按 $M\propto T^{3/2}$，
+> 120 K 对应的质量比拟合值小约 **24 倍**。
+
+公式在 21cmFAST 的 `thermochem.c:287-289` 中以 `mcrit_noLW` 变量实现。
+
+##### 3.3.1 系数 $3.314\times10^7$ 的物理来源
+
+把拟合式用 `TtoM` 反解，得到它对应的**特征维里温度**：
+
+| z | $m_{\rm crit}^{\rm fit}$ [M⊙] | $T_{\rm vir}$ (μ=1.22 中性) | $T_{\rm vir}$ (μ=0.6 电离) |
+|---|---|---|---|
+| 5 | 2.255e+06 | 1008.7 | 496.1 |
+| 10 | 9.084e+05 | 1007.1 | 495.3 |
+| 20 | 3.444e+05 | 1006.9 | 495.2 |
+| 30 | 1.920e+05 | 1006.9 | 495.2 |
+| 40 | 1.262e+05 | 1006.9 | 495.2 |
+
+$$\boxed{T_{\rm vir}=1007.2\pm0.6\ {\rm K}\quad(\mu=1.22,\ \text{中性气体})}$$
+
+在 $z=5$–$40$ 全域内**恒定**（标准差 0.6 K）。即：
+
+> **$3.314\times10^7$ 就是「$T_{\rm vir}\approx1007$ K 的晕的维里质量」的归一化系数。**
+
+这与 §3.1 自洽：H₂ 转动–振动跃迁激发温度 512 K，气体需热到 $\gtrsim600$–$10^3$ K
+才能有效冷却；维里化气体的温度与 $T_{\rm vir}$ 同量级，故阈值在 $10^3$ K 合理。
+
+##### 3.3.2 指数与前置因子的来源分工
+
+| 部分 | 来源 | 能否解析推导 |
+|---|---|---|
+| **指数 $-1.5$** | 维里标度 $M\propto T^{3/2}(1+z)^{-3/2}$，$T$ 固定即 $M\propto(1+z)^{-1.5}$ | ✅ **可** |
+| **前置因子 $3.314\times10^7$** | 由临界温度 $T_{\rm crit}\approx10^3$ K 经 `TtoM` 映射 | ❌ **不能**，须靠模拟拟合 |
+
+**即：解析只能给出指数，绝对归一化必须由模拟提供**
+（Stacy+11 / Greif+11 的 3D 原初气体模拟 → Fialkov+12 拟合）。
+
+##### 3.3.3 幂律近似的精度
+
+`TtoM` 严格含 $\Omega_m(z)$ 与 $\Delta_c(z)$ 的 $z$ 依赖，故并非精确幂律。实测：
+
+- 对拟合式做 log–log 线性拟合：斜率 **−1.500000**（精确）
+- 用真实 `TtoM` 固定温度计算：斜率 **−1.4990**，偏离 −1.5 仅 **0.0010**
+
+高 $z$ 下宇宙趋于 Einstein–de Sitter（$\Omega_m\to1$），故 $(1+z)^{-1.5}$ 近似极好。
+
+前置因子 $3.314\times10^7$ 继承了 NFW 尖点密度假设 [1]，隐式编码了 CDM 的剖面结构
+（见 §5.10 与 §3.4 的讨论）——**这正是 FDM 需要修正它的根本原因**。
+
+> 数值复算脚本：`scripts/probe_mcrit_coeff.py`。
 
 #### 3.4 NFW 尖点的中心密度优势
 
@@ -1247,11 +1376,11 @@ $$
 
 以 $m_{22}=1$（$M_{\rm sol}=1.54\times 10^7 M_\odot$）为例，代入三个代表质量检验：
 
-|       $M_h$ [$M_\odot$]       |                              Schive+14 公式给出的$M_{\rm core}$                              | $M_{\rm core} / M_h$ | 实际物理结构                               |
-| :--------------------------------: | :--------------------------------------------------------------------------------------------: | :--------------------: | ------------------------------------------ |
-|              $10^9$              |                                      $6.2 \times 10^7$                                      |         0.062         | 孤子仅占中心极小区域 — 公式**有效** |
-| $1.54 \times 10^7 = M_{\rm sol}$ |                                      $1.54 \times 10^7$                                      |     **1.0**     | 孤子刚好填满 — 公式恰好交于边界           |
-|              $10^6$              | $6.2 \times 10^6$ | **6.2 > 1** | 纯孤子，$M_{\rm core} = M_h$ — 公式**失效** |                        |                                            |
+| $M_h$ [$M_\odot$]       |                              Schive+14 公式给出的$M_{\rm core}$ |                                     $M_{\rm core} / M_h$                                     | 实际物理结构 |                                            |
+| :---------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------: | :-----------: | ------------------------------------------ |
+|                                            $10^9$                                            |                                      $6.2 \times 10^7$                                      |     0.062     | 孤子仅占中心极小区域 — 公式**有效** |
+|                               $1.54 \times 10^7 = M_{\rm sol}$                               |                                      $1.54 \times 10^7$                                      | **1.0** | 孤子刚好填满 — 公式恰好交于边界           |
+|                                            $10^6$                                            | $6.2 \times 10^6$ | **6.2 > 1** | 纯孤子，$M_{\rm core} = M_h$ — 公式**失效** |              |                                            |
 
 > **为什么 $M_h < M_{\rm sol}$ 的晕是存在的，而且 $M_{\rm core} = M_h$？**
 >
@@ -1434,11 +1563,11 @@ $$
 
 **步骤 1 — 列出所有可用的物理约束。** 这些约束不来自"简化"，而是方程 (1) 在不同极限下的精确行为：
 
-|   #   | 极限                                                         | 物理条件                                                                                             | 行为                                                            |
-| :---: | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-|  (i)  | $m_{\rm crit}^{\rm CDM} \gg M_{\rm sol}$                   | 高$z$ 大晕 / $m_{22}$ 大 | FDM 效应可忽略：$m_{\rm crit}^{\rm FDM} \to m_{\rm crit}^{\rm CDM}$ |                                                                 |
-| (ii) | $m_{\rm crit}^{\rm CDM} \ll M_{\rm sol}$, $\gamma \ll p$ | 低$z$ 小晕 / $m_{22}$ 小 | 孤子钳制：$m_{\rm crit}^{\rm FDM} \to M_{\rm sol}$                  |                                                                 |
-| (iii) | 对称性                                                       | 模型在$m_{22}$ 与 $z$ 互换下不变                                                                 | $m_{\rm crit}^{\rm FDM}(a, b) = m_{\rm crit}^{\rm FDM}(b, a)$ |
+|   #   | 极限                                                                                                                                                                | 物理条件                             | 行为                                                            |
+| :---: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------- |
+|  (i)  | $m_{\rm crit}^{\rm CDM} \gg M_{\rm sol}$                   | 高$z$ 大晕 / $m_{22}$ 大 | FDM 效应可忽略：$m_{\rm crit}^{\rm FDM} \to m_{\rm crit}^{\rm CDM}$ |                                      |                                                                 |
+| (ii) | $m_{\rm crit}^{\rm CDM} \ll M_{\rm sol}$, $\gamma \ll p$ | 低$z$ 小晕 / $m_{22}$ 小 | 孤子钳制：$m_{\rm crit}^{\rm FDM} \to M_{\rm sol}$                  |                                      |                                                                 |
+| (iii) | 对称性                                                                                                                                                              | 模型在$m_{22}$ 与 $z$ 互换下不变 | $m_{\rm crit}^{\rm FDM}(a, b) = m_{\rm crit}^{\rm FDM}(b, a)$ |
 
 约束 (i)–(ii) 来自 §5.5 的渐近分析。约束 (iii) 是**物理对称性要求**：$m_{\rm crit}^{\rm CDM}(z)$ 与 $M_{\rm sol}(m_{22})$ 都只是临界质量的两个独立输入——交换二者不应改变结果（这正是 §5.1 的物理起点的直接推论：判据对 $z$ 通道和 $m_{22}$ 通道是对称的）。
 
@@ -1482,11 +1611,11 @@ $$
 
 其中 $k$ 由 $\eta(x)$ 的剖面形状和 $\gamma$ 决定。两个特例：
 
-| 近似                                                                                  |     $k$     | 对应物理假设                         |
-| ------------------------------------------------------------------------------------- | :-----------: | ------------------------------------ |
-| $n_H^{\rm CDM}$ 不随 $M_h$ 变化 ($\gamma=0$)、$\eta(x)$ 在 $x=1$ 处陡峭过渡 |  $\infty$  | 冷却阈值严格在$M_{\rm sol}$ 处截断 |
-| $n_H^{\rm CDM} \propto M_h$ ($\gamma=1$)、$\eta(x)$ 线性                        |       1       | 化学和结构串联作用（过估）           |
-| 中间情况 ($\gamma \approx 0.05$–$0.15$, $\eta$ 平滑)                           | $\approx 2$ | **中心值**                     |
+| 近似                                                                                  |                       $k$                       | 对应物理假设               |
+| ------------------------------------------------------------------------------------- | :------------------------------------------------: | -------------------------- |
+| $n_H^{\rm CDM}$ 不随 $M_h$ 变化 ($\gamma=0$)、$\eta(x)$ 在 $x=1$ 处陡峭过渡 | $\infty$  | 冷却阈值严格在$M_{\rm sol}$ 处截断 |                            |
+| $n_H^{\rm CDM} \propto M_h$ ($\gamma=1$)、$\eta(x)$ 线性                        |                         1                         | 化学和结构串联作用（过估） |
+| 中间情况 ($\gamma \approx 0.05$–$0.15$, $\eta$ 平滑)                           |                   $\approx 2$                   | **中心值**           |
 
 $k=2$ 是我们当前的最佳估计，不是从公理推导的精确值。$k \in [1, \infty]$ 定义了物理允许的范围。
 
@@ -1714,14 +1843,14 @@ $$
 
 验证证据按说服力从弱到强排列：
 
-| 层级 | 类型                                                                                   |               当前状态               | 能证明什么                                                                                                                             |
-| :--: | -------------------------------------------------------------------------------------- | :-----------------------------------: | -------------------------------------------------------------------------------------------------------------------------------------- |
-|  L0  | **自洽性检验** — 极限退化、单调性、标度律                                       |          ✅ 已完成 (§5.11)          | 模型在数学上不自相矛盾                                                                                                                 |
-|  L1  | **物理约束论证** — 剖面推导：$\eta(x)$ → 隐式方程 → $\sqrt{a^2+b^2}$ 近似 |        ✅ 已完成 (§5.1–5.7)        | 给定$\eta(x)$ 和 $n_H^{\rm CDM}$ 的物理假设下形式是自然的——但 $\eta(x)$ 的形状和 $\gamma$ 的精确值来自有限且部分不确定的输入 |
-|  L2  | **1D 半解析基准** — 球对称 hydro + soliton 势                                   |     ⬜ 未完成 (附录 B 描述了路径)     | 与 3D 模拟同构的简化版物理——可检验$k=2$ 是否在简化情形下成立                                                                       |
-|  L3  | **间接模拟约束** — Tocher+2026 在更高质量处的数据                               | ⬜ 部分 —$f_{\rm wave}$ 因子 (§9) | 约束相关物理（波动力学），提供校准锚点                                                                                                 |
-|  L4  | **直接数值检验** — 3D FDM hydro + 化学模拟                                      |             ❌ 当前不可行             | 黄金标准：直接验证$m_{\rm crit}^{\rm FDM}(m_{22},z)$                                                                                 |
-|  L5  | **宇宙学可观测量** — 21cm 全局信号、UVLF、高-$z$ SFRD                         |               ❌ 未完成               | 终极检验：模型对可观测量的预测与数据对比                                                                                               |
+| 层级 | 类型                                                                                                                                                                                                                                                                   |               当前状态               | 能证明什么                                                       |
+| :--: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-----------------------------------: | ---------------------------------------------------------------- |
+|  L0  | **自洽性检验** — 极限退化、单调性、标度律                                                                                                                                                                                                                       |          ✅ 已完成 (§5.11)          | 模型在数学上不自相矛盾                                           |
+|  L1  | **物理约束论证** — 剖面推导：$\eta(x)$ → 隐式方程 → $\sqrt{a^2+b^2}$ 近似 |        ✅ 已完成 (§5.1–5.7)        | 给定$\eta(x)$ 和 $n_H^{\rm CDM}$ 的物理假设下形式是自然的——但 $\eta(x)$ 的形状和 $\gamma$ 的精确值来自有限且部分不确定的输入 |                                      |                                                                  |
+|  L2  | **1D 半解析基准** — 球对称 hydro + soliton 势                                                                                                                                                                                                                   |     ⬜ 未完成 (附录 B 描述了路径)     | 与 3D 模拟同构的简化版物理——可检验$k=2$ 是否在简化情形下成立 |
+|  L3  | **间接模拟约束** — Tocher+2026 在更高质量处的数据                                                                                                                                                                                                               | ⬜ 部分 —$f_{\rm wave}$ 因子 (§9) | 约束相关物理（波动力学），提供校准锚点                           |
+|  L4  | **直接数值检验** — 3D FDM hydro + 化学模拟                                                                                                                                                                                                                      |             ❌ 当前不可行             | 黄金标准：直接验证$m_{\rm crit}^{\rm FDM}(m_{22},z)$           |
+|  L5  | **宇宙学可观测量** — 21cm 全局信号、UVLF、高-$z$ SFRD                                                                                                                                                                                                         |               ❌ 未完成               | 终极检验：模型对可观测量的预测与数据对比                         |
 
 **没有任何单一层级可以"证明"模型正确。** 验证是累积性的：L0–L2 告诉我们模型物理自洽，L3–L4 告诉我们定量正确，L5 告诉我们宇宙学相关。当前我们仅完成 L0–L1。
 
@@ -1775,14 +1904,14 @@ $$
 
 #### 10.6 具体的不确定性来源
 
-| 来源                                                                                                                                                    |                        定量影响                        | 缓解方向                                      | 优先级 |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------- | :-----------------------------------------------------: | --------------------------------------------- | :----: |
-| 不含波动力学涨落 [17]                                                                                                                                   |        低估抑制$\sim 10$–$80\%$（轻轴子端）        | $f_{\rm wave}$ 因子，待 Tocher+26 [17] 拟合 |   高   |
-| Schive+14 [12] 关系有$\sim 2\times$ 散布                                                                                                              |        $M_{\rm sol}$ 可能偏移 $\sim 3\times$        | 来自多个模拟组的交叉校准                      |   高   |
-| 孤子-晕关系的红移演化                                                                                                                                   | Schive+14 [12] 在$z \sim 0$ 校准，高 $z$ 行为不确定 | 需$z>10$ 的 FDM N-body 模拟                 |   中   |
-| 仅孤子几何 [12]，无纤维吸积/角动量/碎裂                                                                                                                 |                  方向不明（竞争效应）                  | 1D hydro [16]（附录 B）→ 3D hydro (L4)       |   中   |
-| $f_{\rm wave}$ 为外推                                                                                                                                 |            表中值可能$\sim 2\times$ 不准确            | 待 Tocher+26 [17] 正式发表                    |   高   |
-| $m_{\rm crit}^{\rm CDM}$ 的 CDM/NFW [1] 依赖 | §5.10 讨论的隐式 NFW 假设 | FDM 化学阈值重新校准（需 L4 模拟） | 低（$M_{\rm sol}$ 主导区间影响小） |                                                        |                                               |        |
+| 来源                                                                                                                                                                                                   |                                        定量影响                                        | 缓解方向                                      | 优先级 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------: | --------------------------------------------- | :----: |
+| 不含波动力学涨落 [17]                                                                                                                                                                                  |                        低估抑制$\sim 10$–$80\%$（轻轴子端）                        | $f_{\rm wave}$ 因子，待 Tocher+26 [17] 拟合 |   高   |
+| Schive+14 [12] 关系有$\sim 2\times$ 散布                                                                                                                                                             |                        $M_{\rm sol}$ 可能偏移 $\sim 3\times$                        | 来自多个模拟组的交叉校准                      |   高   |
+| 孤子-晕关系的红移演化                                                                                                                                                                                  | Schive+14 [12] 在$z \sim 0$ 校准，高 $z$ 行为不确定 | 需$z>10$ 的 FDM N-body 模拟 | 中                                            |        |
+| 仅孤子几何 [12]，无纤维吸积/角动量/碎裂                                                                                                                                                                |                                  方向不明（竞争效应）                                  | 1D hydro [16]（附录 B）→ 3D hydro (L4)       |   中   |
+| $f_{\rm wave}$ 为外推                                                                                                                                 |            表中值可能$\sim 2\times$ 不准确 |                               待 Tocher+26 [17] 正式发表                               | 高                                            |        |
+| $m_{\rm crit}^{\rm CDM}$ 的 CDM/NFW [1] 依赖 | §5.10 讨论的隐式 NFW 假设 | FDM 化学阈值重新校准（需 L4 模拟） | 低（$M_{\rm sol}$ 主导区间影响小）                                                |                                                                                        |                                               |        |
 
 #### 10.7 底线
 
@@ -1852,11 +1981,11 @@ $$
 
 ##### A.3 与 Tocher+2026 定量鸿沟
 
-|       $m_a$       | 静态模型判定                    | Tocher 实测                  |       鸿沟       |
-| :------------------: | ------------------------------- | ---------------------------- | :---------------: |
-| $1\times 10^{-22}$ | 所有$M_h \le 10^{10}$: 不冷却 | $M_h=3\times10^9$: 46% SFE |        ∞        |
-| $2\times 10^{-22}$ | 同上                            | $M_h=8\times10^8$: 16% SFE |        ∞        |
-| $1\times 10^{-21}$ | $M_h=10^{10}$: COOLS          | 外推:$\sim 10^9$ 可冷却    | $\sim 10\times$ |
+|                        $m_a$                        | 静态模型判定                                                | Tocher 实测                  | 鸿沟 |
+| :----------------------------------------------------: | ----------------------------------------------------------- | ---------------------------- | :--: |
+| $1\times 10^{-22}$ | 所有$M_h \le 10^{10}$: 不冷却 | $M_h=3\times10^9$: 46% SFE                                | ∞                           |      |
+|                  $2\times 10^{-22}$                  | 同上                                                        | $M_h=8\times10^8$: 16% SFE |  ∞  |
+|                  $1\times 10^{-21}$                  | $M_h=10^{10}$: COOLS          | 外推:$\sim 10^9$ 可冷却 | $\sim 10\times$            |      |
 
 结论：静态模型在 $m_a \lesssim 5\times 10^{-22}$ eV 时完全不可用（返回 `inf`）。推荐方案（正文 §5-7）取代静态模型的二分查找，直接给出物理上自洽的 $m_{\rm crit}^{\rm FDM}$。
 
@@ -1910,8 +2039,6 @@ FDM 修改是将系数 $\{M_0, a, b, c, d\}$ 变为 $m_a$ 的函数。这需要*
 
 运行：`.venv/bin/python scripts/calibrate_fdm_mcrit.py`
 
-
-
 # 第四篇　一致性审计与冲突裁决
 
 > 来源：`docs/FDM_audit_report.md`　状态：**现行**
@@ -1924,12 +2051,12 @@ FDM 修改是将系数 $\{M_0, a, b, c, d\}$ 变为 $m_a$ 的函数。这需要*
 
 ### 0. 摘要
 
-| 问题 | 结论 |
-|---|---|
-| Liu 有没有要改条件 HMF？ | **有**，且是论文自称首次提出的核心创新（Eq.(5)） |
-| 两份 md 谁对？ | 各对一半：`FDM_MCG_modeling.md`「应加 `f_FDM`」对；`FDM_MCG_modeling.md` 附录「σ mix 是 bug」错；`FDM_hmf_design.md`「不能加」错 |
-| md 的行号过时吗？ | **没有**，`D:\v21cmFAST` 下全部准确（此前判"过时"是误用重构版所致） |
-| fork 相对论文的偏离 | 补上了 Liu 代码缺失的 `f_FDM`（✓），但 sigma2 退化为 CDM σ（✗） |
+| 问题                     | 结论                                                                                                                                      |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Liu 有没有要改条件 HMF？ | **有**，且是论文自称首次提出的核心创新（Eq.(5)）                                                                                    |
+| 两份 md 谁对？           | 各对一半：`FDM_MCG_modeling.md`「应加 `f_FDM`」对；`FDM_MCG_modeling.md` 附录「σ mix 是 bug」错；`FDM_hmf_design.md`「不能加」错 |
+| md 的行号过时吗？        | **没有**，`D:\v21cmFAST` 下全部准确（此前判"过时"是误用重构版所致）                                                               |
+| fork 相对论文的偏离      | 补上了 Liu 代码缺失的`f_FDM`（✓），但 sigma2 退化为 CDM σ（✗）                                                                       |
 
 ---
 
@@ -1937,13 +2064,13 @@ FDM 修改是将系数 $\{M_0, a, b, c, d\}$ 变为 $m_a$ 的函数。这需要*
 
 #### 1.1 版本矩阵
 
-| 目录 | 版本 | git HEAD | 用途 |
-|---|---|---|---|
-| `/mnt/d/v21cmFAST`（`D:\v21cmFAST`） | **v3.3.1** | `369e5b2` Steven Murray, 2023-09-18 | **Liu 源码，唯一权威基准** |
-| `/mnt/d/21cmFAST` | v4.1.1 | `d098e902` 官方 bot, 2026-05-05 | v4 官方干净版（FDM 零命中），本仓库上游 |
-| `/mnt/d/21cmFAST3.3.1fdm版本` | v3.3.1(+41) | `1945bf0` 王子乐, 2026-07-05 | 本仓库的 v3 重构版 |
-| `/home/dministrat/v21cmFAST` | 同上 | `1945bf0` | 与上一行**同一 commit 的另一副本** |
-| `/home/dministrat/21cmFAST_fork` | **v4 开发版** | `111a0b2a`, 2026-07-09 | 本仓库（工作区） |
+| 目录                                     | 版本                | git HEAD                              | 用途                                     |
+| ---------------------------------------- | ------------------- | ------------------------------------- | ---------------------------------------- |
+| `/mnt/d/v21cmFAST`（`D:\v21cmFAST`） | **v3.3.1**    | `369e5b2` Steven Murray, 2023-09-18 | **Liu 源码，唯一权威基准**         |
+| `/mnt/d/21cmFAST`                      | v4.1.1              | `d098e902` 官方 bot, 2026-05-05     | v4 官方干净版（FDM 零命中），本仓库上游  |
+| `/mnt/d/21cmFAST3.3.1fdm版本`          | v3.3.1(+41)         | `1945bf0` 王子乐, 2026-07-05        | 本仓库的 v3 重构版                       |
+| `/home/dministrat/v21cmFAST`           | 同上                | `1945bf0`                           | 与上一行**同一 commit 的另一副本** |
+| `/home/dministrat/21cmFAST_fork`       | **v4 开发版** | `111a0b2a`, 2026-07-09              | 本仓库（工作区）                         |
 
 > **禁止**用 `/home/dministrat/v21cmFAST`（4423 行，含独立 `fdm.c`）核对 Liu 代码行号。
 > 该副本是 2026-07-05 由本仓库做的「FDM 模块分离」重构，`dNdM_st_F` 等函数是重构产物，**不是 Liu 原码**。
@@ -1962,13 +2089,13 @@ git tag baseline/pre-fdm  →  d8f67b76
 
 `d8f67b76` 是 FDM 引入前的最后一个提交（`72df7832^`）。纯净度验证：
 
-| 关键字 | 命中数 |
-|---|---|
-| `FDM` | 0 |
-| `m22` | 0 |
-| `dndm_FDM` | 0 |
-| `HMF_FINDEX` | 0 |
-| `T_F` | 17（**全部是 `FRACT_FLOAT_ERR` 的子串误匹配**，与 FDM 无关） |
+| 关键字         | 命中数                                                               |
+| -------------- | -------------------------------------------------------------------- |
+| `FDM`        | 0                                                                    |
+| `m22`        | 0                                                                    |
+| `dndm_FDM`   | 0                                                                    |
+| `HMF_FINDEX` | 0                                                                    |
+| `T_F`        | 17（**全部是 `FRACT_FLOAT_ERR` 的子串误匹配**，与 FDM 无关） |
 
 派生链：
 
@@ -1997,25 +2124,25 @@ git diff baseline/pre-fdm HEAD -- src/py21cmfast/src/ # 仅已提交部分
 
 #### 2.1 纯 FDM 改动（10 文件）
 
-| 文件 | 改动 | 说明 |
-|---|---|---|
-| `src/py21cmfast/src/fdm.c` | +185（新增） | `T_F`、`dndm_FDM`、`sigma_z0_pre`、`dsigmasqdm_z0_pre` |
-| `src/py21cmfast/src/fdm.h` | +16（新增） | 声明 |
-| `cosmology.c` | +34 | `power_in_k` 乘 $T_F^2$（L297-300）、`power_in_k_cdm`（L310） |
-| `cosmology.h` | +1 | — |
-| `hmf.c` | ±56 | 无条件 HMF（L509）、**条件 HMF（L457，未提交）** 乘 `dndm_FDM` |
-| `interp_tables.c` | +47 | `Sigma_InterpTable_CDM` 建表与 `EvaluateSigma` FDM 分支（L1206-1217） |
-| `wrapper/inputs.py` | +8 | `m22`(L456)、`FDM`(L687)、`HMF_FINDEX`(L689) |
-| `_inputparams_wrapper.h` | +6 | — |
-| `_functionprototypes_wrapper.h` | +13 | — |
-| `debugging.c` | ±11 | 仅打印 FDM 参数（L100, L119） |
+| 文件                              | 改动         | 说明                                                                      |
+| --------------------------------- | ------------ | ------------------------------------------------------------------------- |
+| `src/py21cmfast/src/fdm.c`      | +185（新增） | `T_F`、`dndm_FDM`、`sigma_z0_pre`、`dsigmasqdm_z0_pre`            |
+| `src/py21cmfast/src/fdm.h`      | +16（新增）  | 声明                                                                      |
+| `cosmology.c`                   | +34          | `power_in_k` 乘 $T_F^2$（L297-300）、`power_in_k_cdm`（L310）       |
+| `cosmology.h`                   | +1           | —                                                                        |
+| `hmf.c`                         | ±56         | 无条件 HMF（L509）、**条件 HMF（L457，未提交）** 乘 `dndm_FDM`    |
+| `interp_tables.c`               | +47          | `Sigma_InterpTable_CDM` 建表与 `EvaluateSigma` FDM 分支（L1206-1217） |
+| `wrapper/inputs.py`             | +8           | `m22`(L456)、`FDM`(L687)、`HMF_FINDEX`(L689)                        |
+| `_inputparams_wrapper.h`        | +6           | —                                                                        |
+| `_functionprototypes_wrapper.h` | +13          | —                                                                        |
+| `debugging.c`                   | ±11         | 仅打印 FDM 参数（L100, L119）                                             |
 
 #### 2.2 混入的非 FDM 改动（**审计时排除**）
 
-| 文件 | 改动 | 性质 |
-|---|---|---|
+| 文件                            | 改动      | 性质                                                                              |
+| ------------------------------- | --------- | --------------------------------------------------------------------------------- |
 | `indexing.c` / `indexing.h` | +6 / ±16 | `inline` → `static inline` 链接性整理 + `resample_index` 从 header 迁至 .c |
-| `.gitignore` | ±2 | `py21cmfast/` → `/py21cmfast/` 路径锚定 |
+| `.gitignore`                  | ±2       | `py21cmfast/` → `/py21cmfast/` 路径锚定                                      |
 
 > 这些改动与 FDM 逻辑无关，是同期混入的工程性改动。
 >
@@ -2040,11 +2167,15 @@ git diff baseline/pre-fdm HEAD -- src/py21cmfast/src/ # 仅已提交部分
 
 **Eq.(2)** — FDM 线性功率谱（Hu+00）：
 
-$$ \frac{P_{\rm FDM}(k,z)}{P_{\rm CDM}(k,z)} = \left[\frac{\cos(x^3)}{1+x^8}\right]^2,\quad x(k)\equiv 1.61\,m_{22}^{1/18}\frac{k}{k_{J,\rm eq}},\quad k_{J,\rm eq}=9\,m_{22}^{1/2}\,{\rm Mpc^{-1}} $$
+$$
+\frac{P_{\rm FDM}(k,z)}{P_{\rm CDM}(k,z)} = \left[\frac{\cos(x^3)}{1+x^8}\right]^2,\quad x(k)\equiv 1.61\,m_{22}^{1/18}\frac{k}{k_{J,\rm eq}},\quad k_{J,\rm eq}=9\,m_{22}^{1/2}\,{\rm Mpc^{-1}}
+$$
 
 **Eq.(3)** — FDM HMF（Schive+16 拟合）：
 
-$$ \left.\frac{dn}{dm}\right|_{\rm FDM}(m,z) = \left.\frac{dn}{dm}\right|_{\rm CDM}(m,z) \cdot \left[1+\left(\frac{m}{M_0}\right)^{\alpha}\right]^{-2.2},\quad M_0\equiv1.6\times10^{10}m_{22}^{-4/3}M_\odot,\ \alpha=-1.1 $$
+$$
+\left.\frac{dn}{dm}\right|_{\rm FDM}(m,z) = \left.\frac{dn}{dm}\right|_{\rm CDM}(m,z) \cdot \left[1+\left(\frac{m}{M_0}\right)^{\alpha}\right]^{-2.2},\quad M_0\equiv1.6\times10^{10}m_{22}^{-4/3}M_\odot,\ \alpha=-1.1
+$$
 
 **Eq.(4)** — 标准 excursion set：$\left.\frac{dn}{dm}\right|_{\rm CDM} = -\frac{\bar\rho_m}{m}f(\nu)\frac{d\ln\sigma}{dm}$，$\nu\equiv\delta_c/\sigma(m,z)$
 
@@ -2052,7 +2183,9 @@ $$ \left.\frac{dn}{dm}\right|_{\rm FDM}(m,z) = \left.\frac{dn}{dm}\right|_{\rm C
 
 > "We will work with the ansatz where the peak height variable that affects the FDM HMF in Eq. (3) **via the $(dn/dm)|_{\rm CDM}$ term** should be written as
 
-$$ \nu^2 = \frac{[\delta_c - \delta_{\rm FDM}(z)]^2}{\sigma^2_{\rm CDM}(m,z) - \sigma^2_{\rm FDM}(M,z)} $$
+$$
+\nu^2 = \frac{[\delta_c - \delta_{\rm FDM}(z)]^2}{\sigma^2_{\rm CDM}(m,z) - \sigma^2_{\rm FDM}(M,z)}
+$$
 
 > where $m$ is the halo mass, $M$ is the total mass within the comoving volume under consideration, $\delta_{\rm FDM}(z)$ is the linear-theory FDM overdensity within this volume at redshift $z$, and $\sigma^2_{\rm FDM}(M,z)$ is the variance of the linear-theory FDM density field smoothed on mass scale $M$."
 
@@ -2074,12 +2207,12 @@ $$ \nu^2 = \frac{[\delta_c - \delta_{\rm FDM}(z)]^2}{\sigma^2_{\rm CDM}(m,z) - \
 
 ### 4. 三方对照表
 
-| 要素 | Liu 论文 | Liu 代码 `D:\v21cmFAST` | 本仓库 fork |
-|---|:-:|:-:|:-:|
-| ① $\sigma_{\rm CDM}(m)$ for sigma1 | 要求 | ✓ `ps.c:2255` (`Sigma_InterpTable_CDM`) | ✓ `EvaluateSigma`→CDM 表 |
-| ② **$\sigma_{\rm FDM}(M)$ for sigma2** | **要求 Eq.(5)** | ✓ `ps.c:2845`（`Sigma_InterpTable`，含 $T_F$） | **✗ 退化为 $\sigma_{\rm CDM}(M)$** |
-| ③ **$\times f_{\rm FDM}(m)$** | **要求 Eq.(3)** | **✗ 缺失**（`dNdM_conditional` 2240-2286 内无 `dndm_FDM`） | ✓ `hmf.c:457`（未提交） |
-| ④ 分子 $\delta_{\rm FDM}$ | 要求 | ✓（ICs 用含 $T_F$ 的功率谱） | ✓ `cosmology.c:297-300` |
+| 要素                                           |       Liu 论文       |                       Liu 代码`D:\v21cmFAST`                       |                 本仓库 fork                 |
+| ---------------------------------------------- | :-------------------: | :-------------------------------------------------------------------: | :-----------------------------------------: |
+| ①$\sigma_{\rm CDM}(m)$ for sigma1           |         要求         |              ✓`ps.c:2255` (`Sigma_InterpTable_CDM`)              |         ✓`EvaluateSigma`→CDM 表         |
+| ②**$\sigma_{\rm FDM}(M)$ for sigma2** | **要求 Eq.(5)** |         ✓`ps.c:2845`（`Sigma_InterpTable`，含 $T_F$）         | **✗ 退化为 $\sigma_{\rm CDM}(M)$** |
+| ③**$\times f_{\rm FDM}(m)$**          | **要求 Eq.(3)** | **✗ 缺失**（`dNdM_conditional` 2240-2286 内无 `dndm_FDM`） |          ✓`hmf.c:457`（未提交）          |
+| ④ 分子$\delta_{\rm FDM}$                    |         要求         |                    ✓（ICs 用含$T_F$ 的功率谱）                    |          ✓`cosmology.c:297-300`          |
 
 **一句话**：Liu 代码缺 ③，本仓库补上了 ③ 但丢了 ②——**两边各缺一半**。
 
@@ -2113,42 +2246,42 @@ double EvaluateSigma(double lnM) {
 
 ### 5. 逐条裁决
 
-| # | 主张 | 裁决 | 依据 |
-|---|---|---|---|
-| 1 | `FDM_hmf_design.md` §3「条件 HMF **不能**加 `dndm_FDM`」 | **错误** | Eq.(3) 要求 $f_{\rm FDM}$ 经 $(dn/dm)\|_{\rm CDM}$ 保留；论文自述 $M\to\infty$ 时条件 HMF「reduces to Eq.(3)」，不含 $f_{\rm FDM}$ 则无法回归全局 FDM HMF |
-| 2 | 同上文档「乘 $f_{\rm FDM}$ 会破坏 $\langle$cond$\rangle_\delta$=uncond」 | **数学上不成立** | $f_{\rm FDM}(M)$ 仅依赖 $M$、不依赖 $\delta$，可提出 $\delta$ 平均之外：$\langle$cond$_{\rm CDM}\times f\rangle_\delta=f\times$uncond$_{\rm CDM}=$uncond$_{\rm FDM}$ ✓ |
-| 3 | 同上文档「FDM 抑制如何随 δ 变化目前无数据/公式」 | **过时** | Liu+25 已给出 Eq.(5)（自称首次提出） |
-| 4 | `FDM_MCG_modeling.md` A.3「σ mix 是 bug，sigma2 应用 σ_CDM」 | **错误** | 混合 σ 正是 Eq.(5) 要求；Liu 代码 `ps.c:2255+2845` 是**正确实现** |
-| 5 | 同上文档 A.3「缺少 $f_{\rm FDM}$ 因子」 | **正确**（论证框架错） | 非「σ 通道 vs f 通道二选一」，论文要求**两者同时具备** |
-| 6 | 同上文档正文方案 2「全 CDM σ + 事后乘 $f_{\rm FDM}$」 | **与 Eq.(5) 冲突** | Eq.(5) 要求分母含 $\sigma^2_{\rm FDM}(M)$；本仓库照此实施导致要素②偏离 |
-| 7 | 两份 md 的 ps.c 行号引用 | **准确，不应改** | 以 `D:\v21cmFAST`（4544 行）核对全部吻合 |
-| 8 | `fdm.c:47` 注释 "high-mass cutoff" | **确认为误导** | $\alpha=-1.1$ 压制**小质量**晕，应为 low-mass suppression |
-| 9 | `FDM_MCG_modeling.md` §1「`dndm_FDM` 仅作用于 `unconditional_hmf`」 | 对 Liu 为真，**对 fork 已过时** | fork 条件 HMF 已加（L457） |
-| 10 | `compute_fdm_mcrit.py` 静态势模型 | **定量不可用** | 高估 $M_{\rm crit}$ 达 10²–10⁴ 倍；与 Tocher+26 矛盾（静态判「不冷却」vs 实测 46% SFE） |
+| #  | 主张                                                                          | 裁决                                  | 依据                                                                                                                                                                                    |
+| -- | ----------------------------------------------------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1  | `FDM_hmf_design.md` §3「条件 HMF **不能**加 `dndm_FDM`」           | **错误**                        | Eq.(3) 要求$f_{\rm FDM}$ 经 $(dn/dm)\|_{\rm CDM}$ 保留；论文自述 $M\to\infty$ 时条件 HMF「reduces to Eq.(3)」，不含 $f_{\rm FDM}$ 则无法回归全局 FDM HMF                        |
+| 2  | 同上文档「乘$f_{\rm FDM}$ 会破坏 $\langle$cond$\rangle_\delta$=uncond」 | **数学上不成立**                | $f_{\rm FDM}(M)$ 仅依赖 $M$、不依赖 $\delta$，可提出 $\delta$ 平均之外：$\langle$cond$_{\rm CDM}\times f\rangle_\delta=f\times$uncond$_{\rm CDM}=$uncond$_{\rm FDM}$ ✓ |
+| 3  | 同上文档「FDM 抑制如何随 δ 变化目前无数据/公式」                             | **过时**                        | Liu+25 已给出 Eq.(5)（自称首次提出）                                                                                                                                                    |
+| 4  | `FDM_MCG_modeling.md` A.3「σ mix 是 bug，sigma2 应用 σ_CDM」              | **错误**                        | 混合 σ 正是 Eq.(5) 要求；Liu 代码`ps.c:2255+2845` 是**正确实现**                                                                                                               |
+| 5  | 同上文档 A.3「缺少$f_{\rm FDM}$ 因子」                                      | **正确**（论证框架错）          | 非「σ 通道 vs f 通道二选一」，论文要求**两者同时具备**                                                                                                                           |
+| 6  | 同上文档正文方案 2「全 CDM σ + 事后乘$f_{\rm FDM}$」                       | **与 Eq.(5) 冲突**              | Eq.(5) 要求分母含$\sigma^2_{\rm FDM}(M)$；本仓库照此实施导致要素②偏离                                                                                                                |
+| 7  | 两份 md 的 ps.c 行号引用                                                      | **准确，不应改**                | 以`D:\v21cmFAST`（4544 行）核对全部吻合                                                                                                                                               |
+| 8  | `fdm.c:47` 注释 "high-mass cutoff"                                          | **确认为误导**                  | $\alpha=-1.1$ 压制**小质量**晕，应为 low-mass suppression                                                                                                                       |
+| 9  | `FDM_MCG_modeling.md` §1「`dndm_FDM` 仅作用于 `unconditional_hmf`」    | 对 Liu 为真，**对 fork 已过时** | fork 条件 HMF 已加（L457）                                                                                                                                                              |
+| 10 | `compute_fdm_mcrit.py` 静态势模型                                           | **定量不可用**                  | 高估$M_{\rm crit}$ 达 10²–10⁴ 倍；与 Tocher+26 矛盾（静态判「不冷却」vs 实测 46% SFE）                                                                                             |
 
 #### 5.1 Liu 代码行号索引（基准：`D:\v21cmFAST`，ps.c 4544 行）
 
-| 符号 | 位置 |
-|---|---|
-| `dndm_FDM` | `ps.c:987` |
-| `dNdM_st` | `ps.c:995` |
-| `dNdM_st_F` | `ps.c:1032-1034`（`return dNdM_st(growthf,M) * dndm_FDM(M);`） |
-| `dNdM_conditional` | `ps.c:2240-2286` |
-| sigma1 的 FDM 分支 | `ps.c:2251-2256` |
-| `sigma2 = Sigma_InterpTable[...]` | `ps.c:2845`（另有 2930 / 3072 / 3397 / 3507） |
-| `Sigma_InterpTable_CDM` 建表 | `ps.c:1684, 1694` |
+| 符号                                | 位置                                                               |
+| ----------------------------------- | ------------------------------------------------------------------ |
+| `dndm_FDM`                        | `ps.c:987`                                                       |
+| `dNdM_st`                         | `ps.c:995`                                                       |
+| `dNdM_st_F`                       | `ps.c:1032-1034`（`return dNdM_st(growthf,M) * dndm_FDM(M);`） |
+| `dNdM_conditional`                | `ps.c:2240-2286`                                                 |
+| sigma1 的 FDM 分支                  | `ps.c:2251-2256`                                                 |
+| `sigma2 = Sigma_InterpTable[...]` | `ps.c:2845`（另有 2930 / 3072 / 3397 / 3507）                    |
+| `Sigma_InterpTable_CDM` 建表      | `ps.c:1684, 1694`                                                |
 
 ---
 
 ### 6. FDM 通道覆盖状况（供后续开发参考）
 
-| 通道 | 状态 | 特征尺度 |
-|---|---|---|
-| ① 功率谱截断 $T_F(k)$ | ✓ 已接入 `cosmology.c:298` | — |
-| ② HMF 压制 $f_{\rm FDM}$ | △ 无条件 ✓ / 条件**部分偏离**（缺要素②） | $M_{\rm hm}=1.6\times10^{10}m_{22}^{-4/3}M_\odot$ |
-| ③ **分子冷却阈值 $m_{\rm crit}$** | **✗ 完全缺失** | $M_{\rm sol}=1.54\times10^{7}m_{22}^{-3/2}M_\odot$ |
-| ④ **SM13 原子冷却/再电离反馈** | **✗ 完全缺失** | 需 1D hydro 重拟合 |
-| ⑤ 波动力学 $f_{\rm wave}$ | ✗ 无接口 | Tocher+26 |
+| 通道                                      | 状态                                              | 特征尺度                                             |
+| ----------------------------------------- | ------------------------------------------------- | ---------------------------------------------------- |
+| ① 功率谱截断$T_F(k)$                   | ✓ 已接入`cosmology.c:298`                      | —                                                   |
+| ② HMF 压制$f_{\rm FDM}$                | △ 无条件 ✓ / 条件**部分偏离**（缺要素②） | $M_{\rm hm}=1.6\times10^{10}m_{22}^{-4/3}M_\odot$  |
+| ③**分子冷却阈值 $m_{\rm crit}$** | **✗ 完全缺失**                             | $M_{\rm sol}=1.54\times10^{7}m_{22}^{-3/2}M_\odot$ |
+| ④**SM13 原子冷却/再电离反馈**      | **✗ 完全缺失**                             | 需 1D hydro 重拟合                                   |
+| ⑤ 波动力学$f_{\rm wave}$               | ✗ 无接口                                         | Tocher+26                                            |
 
 **关键量化**：$M_{\rm sol}\ll M_{\rm hm}$（$m_{22}=1$：$1.5\times10^7$ vs $1.6\times10^{10}$）——
 冷却抑制比 HMF 截断早约 **3 个量级**生效。即 **FDM 影响小质量恒星形成的主导通道（冷却）目前完全未建模**。
@@ -2162,11 +2295,11 @@ double EvaluateSigma(double lnM) {
 用 `.venv/bin/python scripts/calibrate_fdm_mcrit.py`（exit 0）复算
 `FDM_mcrit_algorithm.md` §6 三张表，**全部吻合**：
 
-| 表 | 核对项 | 结果 |
-|---|---|---|
-| §6.1 | $M_{\rm sol}$、$M_{\rm hm}$、$R(z=10/20/30)$ | ✓ 逐项一致（如 $m_{22}=1$：$1.54\times10^7$ / $1.60\times10^{10}$ / 16.98 / 44.73 / 80.21） |
-| §6.2 | $m_{\rm crit}^{\rm FDM}(m_{22},z)$ 绝对值 | ✓ 逐项一致（如 $z{=}10$：CDM $9.084\times10^5$，$m_{22}{=}1$ 为 $1.543\times10^7$） |
-| §6.3 | $\exp(-M_{\rm turn}/M)$ 截断因子 | ✓ 逐项一致（如 $M_h{=}10^7$：CDM 0.9132，$m_{22}{=}1$ 为 0.2138） |
+| 表    | 核对项                                             | 结果                                                                                              |
+| ----- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| §6.1 | $M_{\rm sol}$、$M_{\rm hm}$、$R(z=10/20/30)$ | ✓ 逐项一致（如$m_{22}=1$：$1.54\times10^7$ / $1.60\times10^{10}$ / 16.98 / 44.73 / 80.21） |
+| §6.2 | $m_{\rm crit}^{\rm FDM}(m_{22},z)$ 绝对值        | ✓ 逐项一致（如$z{=}10$：CDM $9.084\times10^5$，$m_{22}{=}1$ 为 $1.543\times10^7$）       |
+| §6.3 | $\exp(-M_{\rm turn}/M)$ 截断因子                 | ✓ 逐项一致（如$M_h{=}10^7$：CDM 0.9132，$m_{22}{=}1$ 为 0.2138）                             |
 
 结论：`FDM_mcrit_algorithm.md` §6 的数值表格**经复算确认无误**，可作为后续实现 mcrit FDM 迁移的依据。
 
@@ -2190,13 +2323,12 @@ double EvaluateSigma(double lnM) {
 
 **结构形成**：Sheth & Tormen 2001, MNRAS 323, 1 · Barkana & Loeb 2001, Phys. Rep. 349, 125 · Bryan & Norman 1998, ApJ 495, 80
 
-
-
 # 第五篇　备选方案存档（未实施）
 
 > 本篇仅保留**尚未实施且具备参考价值**的备选方案。
 >
 > 以下内容已删除，正确结论见**第一篇 §8–§9**：
+>
 > - 「条件 HMF 乘 $f_{\rm FDM}$」（方案 2）—— 已于 2026-09-10 回退，见第一篇 §9.7
 > - 「FDM σ 通道方案」（方案 3）—— 不推荐，与 $f_{\rm FDM}$ 互斥
 > - Liu 源码的公式级对比诊断 —— 已被第一篇 §8 修正
@@ -2223,7 +2355,9 @@ double EvaluateSigma(double lnM) {
 
 利用现有 FDM 基础设施，**只修改分子冷却质量阈值**：
 
-$$M_{\text{turn}}^{\text{FDM}} = \max\left(M_{\text{cool}},\; M_{1/2}\right), \quad M_{1/2} = 1.6\times 10^{10}\; m_{22}^{-4/3}\; M_\odot$$
+$$
+M_{\text{turn}}^{\text{FDM}} = \max\left(M_{\text{cool}},\; M_{1/2}\right), \quad M_{1/2} = 1.6\times 10^{10}\; m_{22}^{-4/3}\; M_\odot
+$$
 
 其中 $M_{\text{cool}}$ 是现有的分子冷却阈值（含 LW 反馈，来自 `lyman_werner_threshold()`），
 $M_{1/2}$ 是 Schive+16 半模质量。物理直觉：FDM 量子压力压制了低于 $M_{1/2}$ 的晕形成，
@@ -2244,11 +2378,15 @@ $M_{1/2}$ 是 Schive+16 半模质量。物理直觉：FDM 量子压力压制了�
 
 Du et al. (2017, ApJ, 838, 63) 提供了完整的 FDM excursion set 解。核心公式（Eq. 6-9）：
 
-$$\frac{dn}{d\ln M}\bigg|_{\delta} = \frac{M_{\text{cond}}}{M} \cdot \frac{\Delta\delta}{\sqrt{2\pi\Delta S}}\cdot\exp\!\left(-\frac{\Delta\delta^2}{2\Delta S}\right)\cdot\frac{dS}{d\ln M}\cdot\frac{1}{\Delta S}\cdot\text{Taylor terms}$$
+$$
+\frac{dn}{d\ln M}\bigg|_{\delta} = \frac{M_{\text{cond}}}{M} \cdot \frac{\Delta\delta}{\sqrt{2\pi\Delta S}}\cdot\exp\!\left(-\frac{\Delta\delta^2}{2\Delta S}\right)\cdot\frac{dS}{d\ln M}\cdot\frac{1}{\Delta S}\cdot\text{Taylor terms}
+$$
 
 其中 barrier 不再是常数 $\delta_c$，而是质量依赖的：
 
-$$\delta_{\text{FDM}}(M, z) = \delta_c \cdot \left[1 + a_1\!\left(\frac{M_{1/2}}{M}\right)^{b_1} + a_2\!\left(\frac{M_{1/2}}{M}\right)^{b_2}\right]$$
+$$
+\delta_{\text{FDM}}(M, z) = \delta_c \cdot \left[1 + a_1\!\left(\frac{M_{1/2}}{M}\right)^{b_1} + a_2\!\left(\frac{M_{1/2}}{M}\right)^{b_2}\right]
+$$
 
 参数 $(a_1,b_1,a_2,b_2)$ 是质量依赖 barrier 的拟合系数。
 
@@ -2264,35 +2402,35 @@ $$\delta_{\text{FDM}}(M, z) = \delta_c \cdot \left[1 + a_1\!\left(\frac{M_{1/2}}
 
 ## A.1 速查表
 
-| 问题 | 答案 |
-|---|---|
-| FDM 的 dndm 怎么算？ | CDM dndm（**用 CDM σ**）× $f_{\rm FDM}(m)$ |
-| σ 用 CDM 还是 FDM？ | **CDM**（唯一例外：条件 HMF 的 $\sigma_2$ 用 FDM） |
-| 为什么不用 FDM σ？ | 会与 $f_{\rm FDM}$ 双重计数 |
-| $f_{\rm FDM}$ 压制大质量还是小质量？ | **小质量**（$\alpha=-1.1<0$） |
-| 条件 HMF 要不要乘 $f_{\rm FDM}$？ | **不要**（已回退对齐 Liu） |
-| $\sigma_1$ / $\sigma_2$ 用什么？ | $\sigma_1$=CDM σ / $\sigma_2$=**FDM σ** |
-| 分子 δ 用什么？ | FDM 场的 δ（ICs 含 $T_F$，自动满足） |
-| 基线在哪？ | `git tag baseline/pre-fdm` → `d8f67b76` |
-| 复现论文图用哪个脚本？ | `train/_plot_ps_dimensionless.py`、`train/_plot_hmf_three.py` |
+| 问题                                                                           | 答案                                                              |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| FDM 的 dndm 怎么算？                                                           | CDM dndm（**用 CDM σ**）× $f_{\rm FDM}(m)$              |
+| σ 用 CDM 还是 FDM？                                                           | **CDM**（唯一例外：条件 HMF 的 $\sigma_2$ 用 FDM）        |
+| 为什么不用 FDM σ？                                                            | 会与$f_{\rm FDM}$ 双重计数                                      |
+| $f_{\rm FDM}$ 压制大质量还是小质量？ | **小质量**（$\alpha=-1.1<0$） |                                                                   |
+| 条件 HMF 要不要乘$f_{\rm FDM}$？                                             | **不要**（已回退对齐 Liu）                                  |
+| $\sigma_1$ / $\sigma_2$ 用什么？                                           | $\sigma_1$=CDM σ / $\sigma_2$=**FDM σ**               |
+| 分子 δ 用什么？                                                               | FDM 场的 δ（ICs 含$T_F$，自动满足）                            |
+| 基线在哪？                                                                     | `git tag baseline/pre-fdm` → `d8f67b76`                      |
+| 复现论文图用哪个脚本？                                                         | `train/_plot_ps_dimensionless.py`、`train/_plot_hmf_three.py` |
 
 ## A.2 常见误区
 
-| 误区 | 纠正 |
-|---|---|
-| 「$f_{\rm FDM}$ 是压制大质量晕的」 | 错。$\alpha=-1.1<0$，压制**小质量** |
-| 「σ₁ 用 CDM、σ₂ 用 FDM 是 bug」 | 错。这正是 Eq.(5) 的要求 |
-| 「条件 HMF 乘 $f_{\rm FDM}$ 会破坏闭合」 | 该论据不成立；但实际已按 Liu 回退为不乘 |
-| 「FDM 效应主要来自 HMF」 | 不准确。$M_{\rm sol}\ll M_{\rm hm}$，**冷却通道才是主导且完全缺失** |
-| 「用 `/home/dministrat/v21cmFAST` 核对 Liu 行号」 | 错。那是重构版（4423 行），要用 `D:\v21cmFAST`（4544 行） |
+| 误区                                                                               | 纠正                                                                        |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 「$f_{\rm FDM}$ 是压制大质量晕的」 | 错。$\alpha=-1.1<0$，压制**小质量** |                                                                             |
+| 「σ₁ 用 CDM、σ₂ 用 FDM 是 bug」                                                | 错。这正是 Eq.(5) 的要求                                                    |
+| 「条件 HMF 乘$f_{\rm FDM}$ 会破坏闭合」                                          | 该论据不成立；但实际已按 Liu 回退为不乘                                     |
+| 「FDM 效应主要来自 HMF」                                                           | 不准确。$M_{\rm sol}\ll M_{\rm hm}$，**冷却通道才是主导且完全缺失** |
+| 「用`/home/dministrat/v21cmFAST` 核对 Liu 行号」                                 | 错。那是重构版（4423 行），要用`D:\v21cmFAST`（4544 行）                  |
 
 ## A.3 验证脚本（`train/`，该目录被 .gitignore 忽略）
 
-| 脚本 | 用途 |
-|---|---|
-| `_plot_ps_dimensionless.py` | 复现 Liu Fig.1 功率谱 |
-| `_plot_hmf_three.py` | 复现 Liu Fig.2 HMF（含 FDM I.C.s 对照） |
-| `_verify_global_path.py` | 验证全局路径 = CDM HMF(CDM σ) × $f_{\rm FDM}$ |
-| `_verify_cond_hmf_fdm.py` | 定量对比 A/B/C 三配置的条件 HMF |
-| `_verify_fork_vs_liu.py` | 扫描 $M_{\min}/M_0$ 对 A/B 比值的影响 |
-| `_verify_meanfixing.py` | 验证 mean-fixing 对差异的抹平作用 |
+| 脚本                          | 用途                                             |
+| ----------------------------- | ------------------------------------------------ |
+| `_plot_ps_dimensionless.py` | 复现 Liu Fig.1 功率谱                            |
+| `_plot_hmf_three.py`        | 复现 Liu Fig.2 HMF（含 FDM I.C.s 对照）          |
+| `_verify_global_path.py`    | 验证全局路径 = CDM HMF(CDM σ) ×$f_{\rm FDM}$ |
+| `_verify_cond_hmf_fdm.py`   | 定量对比 A/B/C 三配置的条件 HMF                  |
+| `_verify_fork_vs_liu.py`    | 扫描$M_{\min}/M_0$ 对 A/B 比值的影响           |
+| `_verify_meanfixing.py`     | 验证 mean-fixing 对差异的抹平作用                |
