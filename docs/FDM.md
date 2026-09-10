@@ -1282,7 +1282,8 @@ $$\boxed{T_{\rm vir}=1007.2\pm0.6\ {\rm K}\quad(\mu=1.22,\ \text{中性气体})}
 前置因子 $3.314\times10^7$ 继承了 NFW 尖点密度假设 [1]，隐式编码了 CDM 的剖面结构
 （见 §5.10 与 §3.4 的讨论）——**这正是 FDM 需要修正它的根本原因**。
 
-> 数值复算脚本：`scripts/probe_mcrit_coeff.py`。
+> 数值复算脚本：`train/_probe_mcrit_coeff.py`
+> （本地临时探针，`train/` 被 .gitignore 忽略，**未入库**；其数值产出已固化于上表）。
 
 #### 3.4 NFW 尖点的中心密度优势
 
@@ -2434,3 +2435,8 @@ $$
 | `_verify_cond_hmf_fdm.py`   | 定量对比 A/B/C 三配置的条件 HMF                  |
 | `_verify_fork_vs_liu.py`    | 扫描$M_{\min}/M_0$ 对 A/B 比值的影响           |
 | `_verify_meanfixing.py`     | 验证 mean-fixing 对差异的抹平作用                |
+| `_probe_mcrit_coeff.py`     | 反解 $3.314\times10^7$ 对应的特征维里温度（§3.3.1） |
+
+> 以上均为**本地一次性验证/探针脚本**，位于被 `.gitignore` 忽略的 `train/` 下，
+> 有意**不入库**，以避免污染项目源码工具目录（`scripts/`）。
+> 其结论与数值产出已固化于本文档相应章节，脚本本身丢失不影响结论可查。
