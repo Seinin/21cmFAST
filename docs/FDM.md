@@ -1311,6 +1311,58 @@ $$M=3.3504\times10^7\,(1+z)^{-1.5}\quad\text{vs}\quad 21\text{cmFAST 采用 }3.3
 
 对应维里温度 $T_{\rm vir}=1019$ K，与 §3.3.1 独立反解的 1007 K 相差 1.21%——**两条独立路径互相印证**。
 
+##### 3.3.0d ★ 用论文正文数据点独立验证
+
+Fialkov+12 第 5 页正文直接给出了 $v_{bc}=0$ 时的最小冷却质量：
+
+> "at redshift 20 a patch with $v_{bc}=0$ will form stars in **3.6 × 10⁵ M⊙** haloes...
+> At z = 60 these numbers become **7.2 × 10⁴**"
+
+与公式对比：
+
+| z | $3.314\times10^7(1+z)^{-1.5}$ | 论文原文 | 偏差 |
+|---|---|---|---|
+| 20 | 3.444e+05 | 3.6e+05 | **−4.3%** |
+| 60 | 6.956e+04 | 7.2e+04 | **−3.4%** |
+
+**吻合**（论文正文数值为近似引用/图形读数，4% 内一致）。
+这独立确认了：$3.314\times10^7$ 与 $V_{\rm cool,0}=3.714$ km/s 是同一个拟合的两种写法。
+
+##### 3.3.0e ⚠ 注意：VCB 与 LW 修正**不是** Fialkov+12 的形式
+
+论文 $v_{bc}$ 依赖是**圆周速度空间的二次合成**（Eq. 2/3）：
+
+$$V_{\rm cool}=\sqrt{V_{\rm cool,0}^2+(\alpha v_{bc})^2}\ \Longrightarrow\ 
+\frac{M_{\rm cool}(v_{bc})}{M_{\rm cool}(0)}=\left[1+\left(\frac{\alpha v_{bc}}{V_{\rm cool,0}}\right)^2\right]^{3/2}$$
+
+而 21cmFAST 采用的是**幂律形式**（`thermochem.c`）：
+
+$$m_{\rm crit}=m_{\rm crit}^{\rm CDM}\cdot(1+A_{\rm LW}J_{21}^{B_{\rm LW}})\cdot\left(1+A_{\rm VCB}\frac{v_{cb}}{\sigma_{\rm VCB}}\right)^{B_{\rm VCB}}$$
+
+默认值 $A_{\rm LW}{=}2.0,\ B_{\rm LW}{=}0.6,\ A_{\rm VCB}{=}1.0,\ B_{\rm VCB}{=}1.8$
+
+在 z=20、$v_{bc}=\rm rms$ 处的提升因子对比：
+
+| 来源 | $M(v_{bc})/M(0)$ |
+|---|---|
+| 论文（正文 6.0e5 / 3.6e5） | **1.667** |
+| Fialkov Eq.3 二次合成 | 1.739 ✓ 吻合 |
+| 代码形式（$v_{cb}$ 外推至 z=0） | 3.591 ✗ |
+| 代码形式（$v_{cb}$ 取瞬时值） | 1.039 ✗ |
+
+**即：代码形式在两种 $v_{cb}$ 解释下都复现不了论文值。**
+
+原因：代码的 VCB / LW 参数来自 **Muñoz et al. (2021, arXiv:2110.13919)** 的重新综合拟合
+（其 $A_{\rm LW}=2.0,\ B_{\rm LW}=0.6$ 采纳了 Schauer+21 关于 H₂ 自屏蔽使 LW 反馈弱于早期估计的结论），
+**与 Fialkov+12 的基线不同源**。
+
+> **实践含义**：`mcrit_noLW` 这一基线来自 Fialkov+12（经 $V_{\rm cool,0}$ 转换）；
+> 而乘在它上面的 $f_{\rm LW}$、$f_{\rm VCB}$ 来自 Muñoz+21。
+> 因此做 FDM 改造时（第三篇 §5 的 $M_{\rm sol}$ 合成），
+> 应作用在 **$m_{\rm crit}^{\rm CDM}$ 基线**上，而不是改动 $f_{\rm LW}$ 或 $f_{\rm VCB}$ 的系数。
+
+> 数值脚本：`train/_check_fialkov_points.py`（本地临时，不入库）。
+
 ##### 3.3.1 系数 $3.314\times10^7$ 的物理来源（独立反解）
 
 把拟合式用 `TtoM` 反解，得到它对应的**特征维里温度**：
