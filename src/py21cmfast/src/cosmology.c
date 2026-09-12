@@ -418,7 +418,25 @@ double sigma_z0(double M) {
     status = gsl_integration_qag(&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61,
                                  w, &result, &error);
 
-    if (status != 0) {
+    if (status == GSL_EROUND) {
+        // GSL_EROUND is not a physical failure: it only means the requested *relative*
+        // tolerance could not be certified in double precision.  The quadrature aims at
+        // epsrel*|result|, so the absolute accuracy demanded shrinks along with the
+        // integral itself and can fall under the roundoff floor of the rule.  In this
+        // code base the case that actually fires is dsigmasqdm_z0 below the FDM cutoff
+        // (measured: |d(sigma^2)/dM| = 7.8e-9 at M=1e5, demanding ~8e-15 while the rule's
+        // own error estimate is 3.5e-14 -- see docs/bug-report-gsl-roundoff-fdm.md).
+        // The returned value is the best double-precision estimate available and is only
+        // used as an interpolation node downstream, so aborting the whole process over it
+        // is wrong.  Deliberately not LOG_ERROR, and deliberately not routed through
+        // CATCH_GSL_ERROR: this is expected whenever FDM power suppression is active.
+        // NOTE: LOG_WARNING is compiled out at the default LOG_LEVEL=1 (logger.h), so the
+        // event is normally silent -- rebuild with -DLOG_LEVEL=2 to see it.
+        LOG_WARNING(
+            "sigma_z0: roundoff-limited integral at M=%e (result=%e, error=%e); using best "
+            "estimate",
+            M, result, error);
+    } else if (status != 0) {
         LOG_ERROR("gsl integration error occured!");
         LOG_ERROR(
             "(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",
@@ -429,7 +447,8 @@ double sigma_z0(double M) {
 
     gsl_integration_workspace_free(w);
 
-    return sqrt(result);
+    // roundoff can push a strictly positive integral to a tiny negative value
+    return sqrt(fmax(result, 0.0));
 }
 
 /*
@@ -470,7 +489,19 @@ double dsigmasqdm_z0(double M) {
     status = gsl_integration_qag(&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61,
                                  w, &result, &error);
 
-    if (status != 0) {
+    if (status == GSL_EROUND) {
+        // See sigma_z0.  This is the branch that actually fires in practice: below the FDM
+        // half-mode mass sigma^2(M) saturates, because the extra modes admitted by a
+        // smaller smoothing window are all cut by T_F(k)^2.  Hence d(sigma^2)/dM collapses
+        // by ~4 orders of magnitude (7.83e-09 at M=1e5 vs 9.70e-05 for CDM), the required
+        // absolute accuracy (epsrel*|result| = 7.8e-15) drops below the quadrature's own
+        // roundoff floor (3.5e-14), and the tolerance test cannot be satisfied.
+        // Do not route through CATCH_GSL_ERROR.
+        LOG_WARNING(
+            "dsigmasqdm_z0: roundoff-limited integral at M=%e (result=%e, error=%e); using "
+            "best estimate",
+            M, result, error);
+    } else if (status != 0) {
         LOG_ERROR("gsl integration error occured!");
         LOG_ERROR(
             "(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",
@@ -480,7 +511,9 @@ double dsigmasqdm_z0(double M) {
     }
 
     gsl_integration_workspace_free(w);
-    return result;
+    // d(sigma^2)/dM < 0 by construction; roundoff must not flip the sign, since callers
+    // take log10(-value)
+    return -fabs(result);
 }
 
 // Sets constants used in the EH transfer function
