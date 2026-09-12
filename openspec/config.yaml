@@ -1,0 +1,41 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+context: |
+  21cmFAST 是半解析宇宙学模拟代码,用于计算 21cm 信号(再电离 EoR 模拟)。
+  本仓库是 fork,当前研究重点是 FDM(模糊暗物质,Fuzzy Dark Matter)建模,
+  包括 mcrit 校准、UVLF(紫外光度函数)拟合、冷却报告等(见 docs/FDM_*.md)。
+
+  Tech stack:
+  - Python >= 3.11;虚拟环境固定为 /home/dministrat/21cmFAST_fork/.venv(必须用 .venv/bin/python 和 .venv/bin/pip)
+  - 核心包 py21cmfast 是本地 v4 开发版,可编辑安装指向 src/ 目录
+  - C 扩展:Cython/CFFI,源码在 src/py21cmfast/src/;改 C 代码后运行 build_cffi.py,
+    且必须把新的 .so 同步复制到 src/py21cmfast/ 才能对脚本生效
+  - 依赖:numpy(>=2.0)、scipy、astropy、h5py、matplotlib、classy、cosmotile、hmf、attrs、tomlkit、cyclopts
+  - 代码风格:ruff(line-length 88,numpy 风格 docstring);C 代码用 clang-format/clang-tidy
+
+  Repository layout:
+  - src/py21cmfast/       主 Python 包
+  - src/py21cmfast/src/   C 源码
+  - tests/                pytest 测试
+  - scripts/              研究/校准脚本(如 calibrate_fdm_mcrit.py、compute_fdm_mcrit.py)
+  - docs/                 文档与研究报告
+  - build_cffi.py         CFFI 构建脚本(不要从 PyPI 安装 py21cmfast/21cmFAST)
+  - openspec/             OpenSpec 规范驱动开发工作区(config.yaml 含本上下文)
+  - math-mcp/             Math MCP 服务器源码(独立工具,数学计算)
+  - docling-graph/        IBM 文档→知识图谱工具 v1.9.1(源码导入;独立 venv:
+    docling-graph/.venv,torch 固定 2.7.1;依赖 docling、litellm、networkx;
+    与 21cmFAST 主代码无耦合)。对应 skill:.codebuddy/skills/docling-graph/
+  - .codebuddy/skills/    CodeBuddy 项目级 skills(docling-graph、openspec-*)
+
+  Conventions:
+  - 运行任何脚本/测试前先激活项目虚拟环境 .venv
+  - 修改 C 扩展后必须同步 .so 到 src/py21cmfast/ 才能生效
+  - 遵守 OpenSpec 工作流:propose(规划)→ apply(实施)→ archive(归档)
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.

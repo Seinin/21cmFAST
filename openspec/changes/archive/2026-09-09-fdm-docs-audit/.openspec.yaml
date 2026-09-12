@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-09
+# 纯文档审计：不引入/修改任何 spec 级行为，故不产出 delta spec
+skip_specs: true
