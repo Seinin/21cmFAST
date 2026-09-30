@@ -379,15 +379,19 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   closeTab: (tabId) => {
-    const { tabs, activeTabId, selectionStash } = get()
+    const { tabs, activeTabId } = get()
     if (tabId === 'main') return
     const index = tabs.findIndex((tab) => tab.id === tabId)
     if (index < 0) return
-    const next = tabs.filter((tab) => tab.id !== tabId)
-    const stash = { ...selectionStash }
+    /**
+     * 顺序要紧：`activateTab` 会把「当前页」的选中态写进 stash，而此刻 `activeTabId` 仍是
+     * 刚关掉这个 id —— 若先删后切，那次写入会把 `delete` 原样撤销（关页的清理失效，重开该
+     * 模块会恢复关页前的陈旧选中态）。所以先切到左邻页，再删这个键。
+     */
+    if (activeTabId === tabId) get().activateTab(tabs[Math.max(0, index - 1)].id)
+    const stash = { ...get().selectionStash }
     delete stash[tabId]
-    set({ tabs: next, selectionStash: stash })
-    if (activeTabId === tabId) get().activateTab(next[Math.max(0, index - 1)].id)
+    set({ tabs: get().tabs.filter((tab) => tab.id !== tabId), selectionStash: stash })
   },
 
   activateTab: (tabId) => {

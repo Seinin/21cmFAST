@@ -15,6 +15,7 @@
     "check:code": "node scripts/check-code-preview.mjs",
     "check:graph": "node scripts/check-graph.mjs",
     "check:store": "node scripts/check-store.mjs",
+    "check:tabs": "node scripts/check-tabs.mjs",
     "build:chain": "node scripts/build-physics-chain.mjs",
     "check:chain": "node scripts/check-physics-chain.mjs",
     "build:atlas": "node scripts/build-atlas-graph.mjs",

@@ -262,36 +262,6 @@ export default function App() {
     window.history.replaceState(null, '', url)
   }, [activeFocusId, view])
 
-  /* ===== 临时诊断（排查「红色徽标看不到」，定位后整块删除） ===== */
-  useEffect(() => {
-    const report = () => {
-      const state = useGraphStore.getState()
-      const badges = [...document.querySelectorAll('button[aria-label="查看这个标签的明细"]')] as HTMLElement[]
-      void fetch('/api/graph/_diag', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          marker: 'diag-2026-09-26-a',
-          href: window.location.href,
-          dpr: window.devicePixelRatio,
-          // 系统/浏览器是否禁用了动画：禁用了的话，呼吸与粒子会被全局规则冻住
-          reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-          viewport: [window.innerWidth, window.innerHeight],
-          activeTagIds: state.activeTagIds,
-          registry: (state.graph.meta.tags ?? []).length,
-          nodes: state.graph.nodes.length,
-          taggedNodes: state.graph.nodes.filter((node) => node.tags.length > 0).length,
-          badgeCount: badges.length,
-          badgeStyles: badges.slice(0, 2).map((el) => el.getAttribute('style')),
-          panelStorage: window.localStorage.getItem('graphify.panelWidth.v1'),
-          at: new Date().toISOString(),
-        }),
-      }).catch(() => undefined)
-    }
-    const timers = [4000, 9000, 15000, 22000].map((ms) => window.setTimeout(report, ms))
-    return () => timers.forEach((id) => window.clearTimeout(id))
-  }, [])
-
   // 启动时从 URL 恢复标签页：非法 id、叶子、装饰容器一律回退主图
   const urlRestoredRef = useRef(false)
   useEffect(() => {

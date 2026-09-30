@@ -28,19 +28,6 @@ import { DIST_DIR } from '../lib/paths.mjs'
 
 export const graphRouter = Router()
 
-/**
- * 临时诊断（排查「红色徽标看不到」用，问题确认后整块删除）：
- * 前端把现场状态 POST 过来，落成 data/_diag.json，方便直接读浏览器真实情况。
- */
-graphRouter.post('/_diag', async (req, res) => {
-  try {
-    await fs.writeFile(new URL('../../data/_diag.json', import.meta.url), JSON.stringify(req.body, null, 2))
-    res.json({ ok: true })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
-  }
-})
-
 const fail = (status, message) => Object.assign(new Error(message), { status })
 
 const text = (value, max) => String(value ?? '').trim().slice(0, max)

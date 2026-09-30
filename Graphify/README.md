@@ -54,7 +54,7 @@ npm start            # http://localhost:5178
 | 关系编辑 | 建立、修改、取消关系；可从节点手柄拖拽连线，也可用对话框精确定义 |
 | notes 面板 | 按文件夹分组的文档列表 + 标题大纲，支持搜索；点击列表项或拖到节点上即可加引用 |
 | 可逆性 | 撤销/重做（100 步，**只作用于当前会话、不写盘**）、删除后一键撤销、服务端自动快照（50 份）可回滚、手动保存产出不参与轮转的保留副本 |
-| 自检脚本 | `npm run check:styles`（样式取值）、`npm run check:canvas`（可见性/标签页/虚线/端口）、`npm run check:graph`（标签政策/可选性/注册表）、`npm run check:code`（源码预览）、`npm run check:store`（保存/快照/保留副本口径）、`npm run check:chain`（物理链：分层纪律/一级集合/话题纪律/覆盖/落点/文献回读/幂等），出错退出码 1 |
+| 自检脚本 | `npm run check:styles`（样式取值）、`npm run check:canvas`（可见性/标签页/虚线/端口）、`npm run check:graph`（标签政策/可选性/注册表）、`npm run check:code`（源码预览）、`npm run check:store`（保存/快照/保留副本口径）、`npm run check:tabs`（标签页状态机/可见集/数据口径）、`npm run check:chain`（物理链：分层纪律/一级集合/话题纪律/覆盖/落点/文献回读/幂等），出错退出码 1 |
 | 物理链数据 | `npm run build:chain` 从真源 `docs/notes/physics-chain/chain.json`（配 `src/py21cmfast` 源码回读）**生成** `src/generated/physics-chain.json`（内容哈希戳记、幂等、可重跑）：量的名字与依据取真源原文，代码落点与文献引用点按源码扫出来，并给每个过程框写入**分层标记**（`chain: main \| bypass`）。**现有工程视角图谱 `data/graph.json` 只读**，两者互不改动 |
 | LLM 建图 | 预留标准化导入端口，支持干跑预览与幂等合并，详见 `docs/LLM_API.md` |
 
