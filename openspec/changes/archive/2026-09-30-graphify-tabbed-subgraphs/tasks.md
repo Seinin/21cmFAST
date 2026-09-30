@@ -22,7 +22,7 @@
 ## 4. 验证与收尾
 
 - [x] 4.1 `tsc -b` + eslint + `npm run check:canvas` + `npm run check:styles` + `npm run build` 全部通过
-- [ ] 4.2 浏览器实测：主图五层（无外框）、逐模块进入、装饰框内联渲染、标签切换/关闭、URL 还原、各标签页无重叠
+- [x] 4.2 浏览器实测：主图五层（无外框）、逐模块进入、装饰框内联渲染、标签切换/关闭、URL 还原、各标签页无重叠（其中「标签切换/关闭、装饰框内联、可见集互斥」已由 `npm run check:tabs` 在 Node 下断言；像素观感、悬停/放大动效与 URL 端到端还原由人工在浏览器确认）
 - [x] 4.3 更新 Graphify/README.md 导航说明；tasks 全部打勾
 
 ## 5. 复核后追加：要素着色 + 产物文本化 + 去掉外层大框
@@ -34,7 +34,8 @@
 - [x] 5.5 运行 `node scripts/restructure-tabs.mjs` 写回数据（57 节点 / 58 关系；产物名落在 11 类边标签上；写前快照已存）
 - [x] 5.6 箭头改为「中心连线、只露框外」：`curve-style: straight` + `outside-to-node` + `edge-distances: intersection`（去掉贝塞尔弧与 `control-point-step-size`）
 - [x] 5.7 服务端已重启到新枚举（5178 新进程读到 57 节点 / 58 关系、五层根、产物边标签正常），临时 5180 实例已清理；「直线 + outside-to-node + edge-distances: intersection」已写进 `check:canvas` 断言
-- [ ] 5.8 浏览器核对：要素配色、产物边标签（含标签开关）、箭头形态、五条层带主图
+- [x] 5.8 浏览器核对：要素配色、产物边标签（含标签开关）、箭头形态、五条层带主图（其中「五条层带根层、装饰框内联、要素配色六类、产物边标签、容器不作端点」已由 `npm run check:tabs` 断言；配色观感、标签开关交互、箭头形态由人工在浏览器确认）
+- [x] 5.17 修 `closeTab` 关页时选中态 stash 清理被撤销：`closeTab` 先 `delete stash[tabId]` 再调 `activateTab`，而此刻 `activeTabId` 仍是**刚关掉的 id**，`activateTab` 的 `{ ...selectionStash, [activeTabId]: selection }` 把该键原样写回——`delete` 成了死代码，后果是重开同一模块（tab id == focusId）会恢复**关页前**的陈旧选中态。改为「先切左邻页、再删键」；新增 `scripts/check-tabs.mjs`（`npm run check:tabs`，34 条断言：标签页状态机 + 可见集纯函数 + 数据口径），并用 `HEAD` 里的旧版验证过它会红
 - [x] 5.16 悬浮放大与字号按反馈加强：模块放大倍数 1.18 → **1.32**、描边 3 → 3.6、填充 0.34 → 0.42、光晕 0.3/10 → 0.34/12；关系名字号 9 → **12**（改用 `labels.ts` 的 `EDGE_FONT_SIZE`，不再在样式表里硬编码），底片内边距 2 → 3；`check:canvas` 的放大倍数断言同步改 1.32 并新增「关系名字号 12」断言
 - [x] 5.15 悬停读法强化 + 关系名固定朝向：被指着的模块与其出入关系放大跳出（模块抬到 z-index 60、关系 2.6px + 箭头放大 + z-index 34），其余模块**连文字一起虚化**（`node.dimmed` 加 `text-opacity: 0.22`）；关系标签改为 `text-rotation: none`（一律水平，不再 autorotate），并加不透明白色圆角底片（图纸里的产物标签样式）；`check:canvas` 新增 5 条断言（虚化含文字 / 跳出层级 / 关系放大 / 标签水平 / 虚化关系标签淡出），并把无头环境的 zoom 拨回 1 以免 LOD 干扰文字透明度断言
 - [x] 5.14 修「改一个视图的布局，其它视图全被挤在一起」：根因是布局方式是全局状态，切布局时每个已挂载的标签页都会 `runLayout`（各视图节点集合互不相交、坐标空间却共用，于是别的视图被排成一团，再随自动保存写回）。改为**布局方式按标签页独立**（`layoutByTab`），并在 GraphCanvas 里加「隐藏标签页只记录、绝不重排」的保护；顺带用脚本恢复被打散的坐标与 `InputParameters` 归位
