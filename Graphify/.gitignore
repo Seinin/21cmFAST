@@ -1,0 +1,24 @@
+# 依赖与构建产物
+node_modules/
+dist/
+
+# 运行期自动快照（体积随时间增长，不入库）
+data/history/
+
+# 写前备份（如 src/generated/physics-chain.json.bak）
+*.bak
+
+# 本地覆盖配置
+*.local
+.env
+
+# 系统文件
+.DS_Store
+
+# 说明：仓库根 .gitignore 含有 `data/`、`dist/`、`*.png`、`*.csv` 等全局规则，
+# 由于 git 无法取消「父目录已被忽略」的排除，Graphify/data/ 默认不会被跟踪。
+# `data/graph.json` 是唯一持久化的人工成果（画布编辑落盘于此），已用
+# `git add -f data/graph.json` 单独入库；data/ 下其余内容不入库——`history/`
+# 自动快照、`graph.before-*.json` 改动前备份、`_diag.json`、各 `*-draft.json`
+# 草稿，以及历次调试留下的隐藏探针脚本（`.*-setup.mjs` 等，约 1MB）。
+# 需要入库的图形资源请使用 SVG（根规则只忽略 PNG）。

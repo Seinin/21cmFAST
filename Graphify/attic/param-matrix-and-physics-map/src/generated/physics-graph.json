@@ -1,0 +1,1184 @@
+{
+  "meta": {
+    "version": 1,
+    "name": "物理视角图谱 · 天体物理参数 × 物理过程",
+    "description": "从 docs/notes/atlas 分层文档与 src/py21cmfast 源码生成：行是天体物理参数（AstroParams / AstroOptions），列是物理过程（L1 阶段），格子是该参数在此过程中的角色。现有工程视角图谱（data/graph.json）不受影响。",
+    "topics": [
+      {
+        "id": "phys-base",
+        "name": "基础查表（不直接产出产物）",
+        "description": "宇宙学背景与质量函数：为后续阶段提供查表，本身不产出 L0 产物"
+      },
+      {
+        "id": "phys-product",
+        "name": "产物阶段",
+        "description": "直接产出 L0 产物的物理阶段（初始条件 → 亮温输出）"
+      }
+    ],
+    "tags": [
+      {
+        "id": "tag:F_STAR10",
+        "name": "F_STAR10",
+        "description": "The fraction of galactic gas in stars for 10^10 solar mass haloes.",
+        "group": "AstroParams",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:F_ESC10",
+        "name": "F_ESC10",
+        "description": "The \"escape fraction\", i.e.",
+        "group": "AstroParams",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:HII_EFF_FACTOR",
+        "name": "HII_EFF_FACTOR",
+        "description": "The ionizing efficiency of high-z galaxies (zeta, from Eq.",
+        "group": "AstroParams",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:POP2_ION",
+        "name": "POP2_ION",
+        "description": "Number of ionizing photons per baryon produced by Pop II stars.",
+        "group": "AstroParams",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:M_TURN",
+        "name": "M_TURN",
+        "description": "Turnover mass (in log10 solar mass units) for quenching of star formation in halos, due to SNe or photo-heating feedback, or inefficient gas accretion.",
+        "group": "AstroParams",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:R_MAX_TS",
+        "name": "R_MAX_TS",
+        "description": "",
+        "group": "AstroParams",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:N_STEP_TS",
+        "name": "N_STEP_TS",
+        "description": "",
+        "group": "AstroParams",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:PHOTONCONS_CALIBRATION_END",
+        "name": "PHOTONCONS_CALIBRATION_END",
+        "description": "",
+        "group": "AstroParams",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:PHOTON_CONS_TYPE",
+        "name": "PHOTON_CONS_TYPE",
+        "description": "Whether to perform a small correction to account for the inherent photon non-conservation.",
+        "group": "AstroOptions",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:USE_TS_FLUCT",
+        "name": "USE_TS_FLUCT",
+        "description": "Whether to perform IGM spin temperature fluctuations (i.e.",
+        "group": "AstroOptions",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:USE_MINI_HALOS",
+        "name": "USE_MINI_HALOS",
+        "description": "Set to True if using mini-halos parameterization.",
+        "group": "AstroOptions",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:USE_UPPER_STELLAR_TURNOVER",
+        "name": "USE_UPPER_STELLAR_TURNOVER",
+        "description": "Whether to use an additional powerlaw in stellar mass fraction at high halo mass.",
+        "group": "AstroOptions",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:USE_EXP_FILTER",
+        "name": "USE_EXP_FILTER",
+        "description": "Use the exponential filter (MFP-epsilon(r) from Davies & Furlanetto 2021) when calculating ionising emissivity fields NOTE: this does not affect other field filters, and should probably be used with HII_FILTER==0 (real-space top-hat)",
+        "group": "AstroOptions",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:INTEGRATION_METHOD_ATOMIC",
+        "name": "INTEGRATION_METHOD_ATOMIC",
+        "description": "The integration method to use for conditional MF integrals of atomic halos in the grids: NOTE: global integrals will use GSL QAG adaptive integration 'GSL-QAG': GSL QAG adaptive integration, 'GAUSS-LEGENDRE': Gauss-Legendre integration, previously forced in the interpolation tables, 'GAMMA-APPROX': Approximate integration, assuming sharp cutoffs and a triple power-law for si…",
+        "group": "AstroOptions",
+        "docId": "atlas/L1-stages.md"
+      },
+      {
+        "id": "tag:INTEGRATION_METHOD_MINI",
+        "name": "INTEGRATION_METHOD_MINI",
+        "description": "The integration method to use for conditional MF integrals of minihalos in the grids: 'GSL-QAG': GSL QAG adaptive integration, 'GAUSS-LEGENDRE': Gauss-Legendre integration, previously forced in the interpolation tables, 'GAMMA-APPROX': Approximate integration, assuming sharp cutoffs and a triple power-law for sigma(M) based on EPS",
+        "group": "AstroOptions",
+        "docId": "atlas/L1-stages.md"
+      }
+    ],
+    "updatedAt": "generated-ff28a74e5ba0"
+  },
+  "nodes": [
+    {
+      "id": "phys:s07",
+      "label": "S07 宇宙学背景",
+      "type": "method",
+      "summary": "构造线性功率谱与几何、增长量，并建好质量方差表——后续所有统计量的数值都从这里来。",
+      "tags": [],
+      "tagDetails": {},
+      "refs": [
+        {
+          "docId": "atlas/L1-stages.md",
+          "anchor": "s07-宇宙学背景",
+          "label": "S07 宇宙学背景",
+          "file": "",
+          "line": null,
+          "endLine": null
+        }
+      ],
+      "topics": [
+        "phys-base"
+      ],
+      "parent": null,
+      "conditional": false,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "phys:s08",
+      "label": "S08 质量函数与统计工具",
+      "type": "method",
+      "summary": "给出晕质量函数、塌缩分数与源质量上下限——源项与电离判据的统计底座。",
+      "tags": [
+        "tag:M_TURN",
+        "tag:USE_MINI_HALOS"
+      ],
+      "tagDetails": {
+        "tag:M_TURN": [
+          {
+            "label": "M_TURN",
+            "kind": "入公式",
+            "note": "落在 S08.1 质量函数与积分引擎",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/hmf.c",
+              "line": 1273,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:USE_MINI_HALOS": [
+          {
+            "label": "USE_MINI_HALOS",
+            "kind": "开关",
+            "note": "落在 S08.1 质量函数与积分引擎",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/hmf.c",
+              "line": 418,
+              "endLine": null
+            }
+          }
+        ]
+      },
+      "refs": [
+        {
+          "docId": "atlas/L1-stages.md",
+          "anchor": "s08-质量函数与统计工具",
+          "label": "S08 质量函数与统计工具",
+          "file": "",
+          "line": null,
+          "endLine": null
+        }
+      ],
+      "topics": [
+        "phys-base"
+      ],
+      "parent": null,
+      "conditional": false,
+      "position": {
+        "x": 260,
+        "y": 0
+      },
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "phys:s09",
+      "label": "S09 初始条件",
+      "type": "method",
+      "summary": "抽样高斯随机场并实空间化，得到最早的密度与速度场——整条链唯一的随机性来源。",
+      "tags": [],
+      "tagDetails": {},
+      "refs": [
+        {
+          "docId": "atlas/L1-stages.md",
+          "anchor": "s09-初始条件",
+          "label": "S09 初始条件",
+          "file": "",
+          "line": null,
+          "endLine": null
+        }
+      ],
+      "topics": [
+        "phys-product"
+      ],
+      "parent": null,
+      "conditional": false,
+      "position": {
+        "x": 520,
+        "y": 0
+      },
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "phys:s10",
+      "label": "S10 微扰场与速度",
+      "type": "method",
+      "summary": "把初始场推进到给定红移——没有它，后续任何阶段都拿不到该红移的物质分布。",
+      "tags": [],
+      "tagDetails": {},
+      "refs": [
+        {
+          "docId": "atlas/L1-stages.md",
+          "anchor": "s10-微扰场与速度",
+          "label": "S10 微扰场与速度",
+          "file": "",
+          "line": null,
+          "endLine": null
+        }
+      ],
+      "topics": [
+        "phys-product"
+      ],
+      "parent": null,
+      "conditional": false,
+      "position": {
+        "x": 780,
+        "y": 0
+      },
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "phys:s11",
+      "label": "S11 晕目录与位移",
+      "type": "method",
+      "summary": "识别离散晕并把它位移到目标红移——源项逐晕累加那条路完全依赖它。",
+      "tags": [
+        "tag:USE_TS_FLUCT",
+        "tag:USE_MINI_HALOS"
+      ],
+      "tagDetails": {
+        "tag:USE_TS_FLUCT": [
+          {
+            "label": "USE_TS_FLUCT",
+            "kind": "开关",
+            "note": "落在 S11.4 质量与属性到欧拉网格的映射",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/map_mass.c",
+              "line": 428,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:USE_MINI_HALOS": [
+          {
+            "label": "USE_MINI_HALOS",
+            "kind": "开关",
+            "note": "落在 S11.4 质量与属性到欧拉网格的映射",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/map_mass.c",
+              "line": 413,
+              "endLine": null
+            }
+          }
+        ]
+      },
+      "refs": [
+        {
+          "docId": "atlas/L1-stages.md",
+          "anchor": "s11-晕目录与位移",
+          "label": "S11 晕目录与位移",
+          "file": "",
+          "line": null,
+          "endLine": null
+        }
+      ],
+      "topics": [
+        "phys-product"
+      ],
+      "parent": null,
+      "conditional": false,
+      "position": {
+        "x": 1040,
+        "y": 0
+      },
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "phys:s12",
+      "label": "S12 天体物理源",
+      "type": "method",
+      "summary": "把晕目录折算成网格上的源项——电离与 X 射线两条路都从它取源。",
+      "tags": [
+        "tag:F_STAR10",
+        "tag:F_ESC10",
+        "tag:POP2_ION",
+        "tag:M_TURN",
+        "tag:PHOTON_CONS_TYPE",
+        "tag:USE_MINI_HALOS",
+        "tag:USE_UPPER_STELLAR_TURNOVER",
+        "tag:USE_TS_FLUCT",
+        "tag:INTEGRATION_METHOD_ATOMIC",
+        "tag:INTEGRATION_METHOD_MINI"
+      ],
+      "tagDetails": {
+        "tag:F_STAR10": [
+          {
+            "label": "F_STAR10",
+            "kind": "入公式",
+            "note": "落在 S12.1 星系标度关系与散射 / S12.3 光度函数诊断输出",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/scaling_relations.c",
+              "line": 44,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:F_ESC10": [
+          {
+            "label": "F_ESC10",
+            "kind": "入公式",
+            "note": "落在 S12.1 星系标度关系与散射",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/scaling_relations.c",
+              "line": 66,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:POP2_ION": [
+          {
+            "label": "POP2_ION",
+            "kind": "入公式",
+            "note": "落在 S12.1 星系标度关系与散射",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/scaling_relations.c",
+              "line": 76,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:M_TURN": [
+          {
+            "label": "M_TURN",
+            "kind": "入公式",
+            "note": "落在 S12.1 星系标度关系与散射 / S12.2 源项网格化",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/scaling_relations.c",
+              "line": 80,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:PHOTON_CONS_TYPE": [
+          {
+            "label": "PHOTON_CONS_TYPE",
+            "kind": "开关",
+            "note": "落在 S12.1 星系标度关系与散射",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/scaling_relations.c",
+              "line": 70,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:USE_MINI_HALOS": [
+          {
+            "label": "USE_MINI_HALOS",
+            "kind": "开关",
+            "note": "落在 S12.1 星系标度关系与散射 / S12.2 源项网格化",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/scaling_relations.c",
+              "line": 81,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:USE_UPPER_STELLAR_TURNOVER": [
+          {
+            "label": "USE_UPPER_STELLAR_TURNOVER",
+            "kind": "开关",
+            "note": "落在 S12.1 星系标度关系与散射",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/scaling_relations.c",
+              "line": 306,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:USE_TS_FLUCT": [
+          {
+            "label": "USE_TS_FLUCT",
+            "kind": "开关",
+            "note": "落在 S12.2 源项网格化",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/HaloBox.c",
+              "line": 584,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:INTEGRATION_METHOD_ATOMIC": [
+          {
+            "label": "INTEGRATION_METHOD_ATOMIC",
+            "kind": "开关",
+            "note": "落在 S12.2 源项网格化",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/HaloBox.c",
+              "line": 392,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:INTEGRATION_METHOD_MINI": [
+          {
+            "label": "INTEGRATION_METHOD_MINI",
+            "kind": "开关",
+            "note": "落在 S12.2 源项网格化",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/HaloBox.c",
+              "line": 394,
+              "endLine": null
+            }
+          }
+        ]
+      },
+      "refs": [
+        {
+          "docId": "atlas/L1-stages.md",
+          "anchor": "s12-天体物理源",
+          "label": "S12 天体物理源",
+          "file": "",
+          "line": null,
+          "endLine": null
+        }
+      ],
+      "topics": [
+        "phys-product"
+      ],
+      "parent": null,
+      "conditional": false,
+      "position": {
+        "x": 1300,
+        "y": 0
+      },
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "phys:s13",
+      "label": "S13 电离与复合",
+      "type": "method",
+      "summary": "用塌缩分数与游程集判据给出每个格点的电离状态并计入复合——21-cm 信号的空间形态由它决定。",
+      "tags": [
+        "tag:HII_EFF_FACTOR",
+        "tag:USE_TS_FLUCT",
+        "tag:USE_MINI_HALOS",
+        "tag:PHOTONCONS_CALIBRATION_END",
+        "tag:INTEGRATION_METHOD_ATOMIC",
+        "tag:INTEGRATION_METHOD_MINI",
+        "tag:USE_EXP_FILTER",
+        "tag:M_TURN",
+        "tag:PHOTON_CONS_TYPE"
+      ],
+      "tagDetails": {
+        "tag:HII_EFF_FACTOR": [
+          {
+            "label": "HII_EFF_FACTOR",
+            "kind": "入公式",
+            "note": "落在 S13.1 常数与尺度初始化",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/IonisationBox.c",
+              "line": 167,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:USE_TS_FLUCT": [
+          {
+            "label": "USE_TS_FLUCT",
+            "kind": "开关",
+            "note": "落在 S13.1 常数与尺度初始化 / S13.3 全局塌缩分数与中性提前退出 / S13.4 多尺度滤波与塌缩分数积分",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/IonisationBox.c",
+              "line": 202,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:USE_MINI_HALOS": [
+          {
+            "label": "USE_MINI_HALOS",
+            "kind": "开关",
+            "note": "落在 S13.1 常数与尺度初始化 / S13.3 全局塌缩分数与中性提前退出 / S13.4 多尺度滤波与塌缩分数积分",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/IonisationBox.c",
+              "line": 156,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:PHOTONCONS_CALIBRATION_END": [
+          {
+            "label": "PHOTONCONS_CALIBRATION_END",
+            "kind": "入公式",
+            "note": "落在 S13.2 光子守恒红移校准的接入",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/photoncons.c",
+              "line": 702,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:INTEGRATION_METHOD_ATOMIC": [
+          {
+            "label": "INTEGRATION_METHOD_ATOMIC",
+            "kind": "入公式",
+            "note": "落在 S13.4 多尺度滤波与塌缩分数积分 / S13.5 游程集电离判据与气泡标记",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/IonisationBox.c",
+              "line": 725,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:INTEGRATION_METHOD_MINI": [
+          {
+            "label": "INTEGRATION_METHOD_MINI",
+            "kind": "入公式",
+            "note": "落在 S13.4 多尺度滤波与塌缩分数积分 / S13.5 游程集电离判据与气泡标记",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/IonisationBox.c",
+              "line": 727,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:USE_EXP_FILTER": [
+          {
+            "label": "USE_EXP_FILTER",
+            "kind": "开关",
+            "note": "落在 S13.4 多尺度滤波与塌缩分数积分",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/IonisationBox.c",
+              "line": 614,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:M_TURN": [
+          {
+            "label": "M_TURN",
+            "kind": "入公式",
+            "note": "落在 S13.5 游程集电离判据与气泡标记",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/IonisationBox.c",
+              "line": 1430,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:PHOTON_CONS_TYPE": [
+          {
+            "label": "PHOTON_CONS_TYPE",
+            "kind": "开关",
+            "note": "落在 S13.5 游程集电离判据与气泡标记",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/IonisationBox.c",
+              "line": 1373,
+              "endLine": null
+            }
+          }
+        ]
+      },
+      "refs": [
+        {
+          "docId": "atlas/L1-stages.md",
+          "anchor": "s13-电离与复合",
+          "label": "S13 电离与复合",
+          "file": "",
+          "line": null,
+          "endLine": null
+        }
+      ],
+      "topics": [
+        "phys-product"
+      ],
+      "parent": null,
+      "conditional": false,
+      "position": {
+        "x": 1560,
+        "y": 0
+      },
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "phys:s14",
+      "label": "S14 热与自旋温度",
+      "type": "method",
+      "summary": "累积各波段辐射率并逐格点求解自旋温度——信号强度与是否可见由它决定。",
+      "tags": [
+        "tag:N_STEP_TS",
+        "tag:USE_MINI_HALOS",
+        "tag:R_MAX_TS",
+        "tag:POP2_ION",
+        "tag:F_STAR10",
+        "tag:F_ESC10",
+        "tag:HII_EFF_FACTOR",
+        "tag:INTEGRATION_METHOD_ATOMIC",
+        "tag:INTEGRATION_METHOD_MINI"
+      ],
+      "tagDetails": {
+        "tag:N_STEP_TS": [
+          {
+            "label": "N_STEP_TS",
+            "kind": "入公式",
+            "note": "落在 S14.1 初始化与红移壳层几何 / S14.2 Lyman 谱系光子预因子 / S14.3 源场多尺度滤波与全局电离历史",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/SpinTemperatureBox.c",
+              "line": 120,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:USE_MINI_HALOS": [
+          {
+            "label": "USE_MINI_HALOS",
+            "kind": "开关",
+            "note": "落在 S14.1 初始化与红移壳层几何 / S14.2 Lyman 谱系光子预因子 / S14.3 源场多尺度滤波与全局电离历史",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/SpinTemperatureBox.c",
+              "line": 160,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:R_MAX_TS": [
+          {
+            "label": "R_MAX_TS",
+            "kind": "入公式",
+            "note": "落在 S14.1 初始化与红移壳层几何",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/SpinTemperatureBox.c",
+              "line": 330,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:POP2_ION": [
+          {
+            "label": "POP2_ION",
+            "kind": "入公式",
+            "note": "落在 S14.2 Lyman 谱系光子预因子 / S14.3 源场多尺度滤波与全局电离历史 / S14.6 逐格点自旋温度演化",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/heating_helper_progs.c",
+              "line": 328,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:F_STAR10": [
+          {
+            "label": "F_STAR10",
+            "kind": "入公式",
+            "note": "落在 S14.3 源场多尺度滤波与全局电离历史 / S14.5 加热与电离辐射率箱累积 / S14.6 逐格点自旋温度演化",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/SpinTemperatureBox.c",
+              "line": 970,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:F_ESC10": [
+          {
+            "label": "F_ESC10",
+            "kind": "入公式",
+            "note": "落在 S14.3 源场多尺度滤波与全局电离历史 / S14.6 逐格点自旋温度演化",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/SpinTemperatureBox.c",
+              "line": 970,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:HII_EFF_FACTOR": [
+          {
+            "label": "HII_EFF_FACTOR",
+            "kind": "入公式",
+            "note": "落在 S14.3 源场多尺度滤波与全局电离历史",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/SpinTemperatureBox.c",
+              "line": 976,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:INTEGRATION_METHOD_ATOMIC": [
+          {
+            "label": "INTEGRATION_METHOD_ATOMIC",
+            "kind": "入公式",
+            "note": "落在 S14.3 源场多尺度滤波与全局电离历史 / S14.5 加热与电离辐射率箱累积",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/SpinTemperatureBox.c",
+              "line": 1003,
+              "endLine": null
+            }
+          }
+        ],
+        "tag:INTEGRATION_METHOD_MINI": [
+          {
+            "label": "INTEGRATION_METHOD_MINI",
+            "kind": "入公式",
+            "note": "落在 S14.3 源场多尺度滤波与全局电离历史 / S14.5 加热与电离辐射率箱累积",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/SpinTemperatureBox.c",
+              "line": 1005,
+              "endLine": null
+            }
+          }
+        ]
+      },
+      "refs": [
+        {
+          "docId": "atlas/L1-stages.md",
+          "anchor": "s14-热与自旋温度",
+          "label": "S14 热与自旋温度",
+          "file": "",
+          "line": null,
+          "endLine": null
+        }
+      ],
+      "topics": [
+        "phys-product"
+      ],
+      "parent": null,
+      "conditional": false,
+      "position": {
+        "x": 1820,
+        "y": 0
+      },
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "phys:s15",
+      "label": "S15 亮温输出",
+      "type": "method",
+      "summary": "把密度、中性分数与自旋温度合成为亮温——主链的终点，也是唯一直接可观测的量。",
+      "tags": [
+        "tag:USE_TS_FLUCT"
+      ],
+      "tagDetails": {
+        "tag:USE_TS_FLUCT": [
+          {
+            "label": "USE_TS_FLUCT",
+            "kind": "开关",
+            "note": "落在 S15.1 常数与前因子准备 / S15.2 中性氢信号幅度填充 / S15.3 光学深度与自旋温度修正",
+            "ref": {
+              "docId": "",
+              "anchor": "",
+              "label": "",
+              "file": "src/py21cmfast/src/BrightnessTemperatureBox.c",
+              "line": 75,
+              "endLine": null
+            }
+          }
+        ]
+      },
+      "refs": [
+        {
+          "docId": "atlas/L1-stages.md",
+          "anchor": "s15-亮温输出",
+          "label": "S15 亮温输出",
+          "file": "",
+          "line": null,
+          "endLine": null
+        }
+      ],
+      "topics": [
+        "phys-product"
+      ],
+      "parent": null,
+      "conditional": false,
+      "position": {
+        "x": 2080,
+        "y": 0
+      },
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    }
+  ],
+  "edges": [
+    {
+      "id": "S09->S10",
+      "source": "phys:s09",
+      "target": "phys:s10",
+      "label": "P02 初始条件",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S09->S11",
+      "source": "phys:s09",
+      "target": "phys:s11",
+      "label": "P02 初始条件",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S14->S11",
+      "source": "phys:s14",
+      "target": "phys:s11",
+      "label": "P08 自旋温度盒",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S13->S11",
+      "source": "phys:s13",
+      "target": "phys:s11",
+      "label": "P09 电离盒",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S09->S12",
+      "source": "phys:s09",
+      "target": "phys:s12",
+      "label": "P02 初始条件",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S11->S12",
+      "source": "phys:s11",
+      "target": "phys:s12",
+      "label": "P04 晕目录",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S14->S12",
+      "source": "phys:s14",
+      "target": "phys:s12",
+      "label": "P08 自旋温度盒",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S13->S12",
+      "source": "phys:s13",
+      "target": "phys:s12",
+      "label": "P09 电离盒",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S09->S13",
+      "source": "phys:s09",
+      "target": "phys:s13",
+      "label": "P02",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S10->S13",
+      "source": "phys:s10",
+      "target": "phys:s13",
+      "label": "P03 微扰场",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S12->S13",
+      "source": "phys:s12",
+      "target": "phys:s13",
+      "label": "P06 源项网格",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S14->S13",
+      "source": "phys:s14",
+      "target": "phys:s13",
+      "label": "P08 自旋温度盒",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S09->S14",
+      "source": "phys:s09",
+      "target": "phys:s14",
+      "label": "P02",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S10->S14",
+      "source": "phys:s10",
+      "target": "phys:s14",
+      "label": "P03 微扰场",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S12->S14",
+      "source": "phys:s12",
+      "target": "phys:s14",
+      "label": "P06 源项网格",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S10->S15",
+      "source": "phys:s10",
+      "target": "phys:s15",
+      "label": "P03 微扰场",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S14->S15",
+      "source": "phys:s14",
+      "target": "phys:s15",
+      "label": "P08 自旋温度盒",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    },
+    {
+      "id": "S13->S15",
+      "source": "phys:s13",
+      "target": "phys:s15",
+      "label": "P09 电离盒",
+      "type": "derives_from",
+      "directed": true,
+      "note": "",
+      "sourcePort": null,
+      "targetPort": null,
+      "conditional": false,
+      "createdAt": "generated-ff28a74e5ba0",
+      "updatedAt": "generated-ff28a74e5ba0"
+    }
+  ]
+}

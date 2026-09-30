@@ -1,0 +1,77 @@
+[
+  {
+    "tagId": "tag:F_STAR10",
+    "short": "恒星形成效率",
+    "source": "wrapper/inputs.py:1166 —— \"fraction of galactic gas in stars for 10^10 solar mass haloes\""
+  },
+  {
+    "tagId": "tag:F_ESC10",
+    "short": "逃逸分数",
+    "source": "wrapper/inputs.py:1193 —— \"escape fraction … ionizing photons escaping into the IGM\""
+  },
+  {
+    "tagId": "tag:HII_EFF_FACTOR",
+    "short": "电离效率 ζ",
+    "source": "wrapper/inputs.py:1163 —— \"ionizing efficiency of high-z galaxies (zeta, Eq. 2 of Greig+2015)\""
+  },
+  {
+    "tagId": "tag:POP2_ION",
+    "short": "每重子光子数",
+    "source": "wrapper/inputs.py:1259 —— \"ionizing photons per baryon produced by Pop II stars\""
+  },
+  {
+    "tagId": "tag:M_TURN",
+    "short": "抑制转折质量",
+    "source": "wrapper/inputs.py:1209 —— \"turnover mass … for quenching of star formation in halos\""
+  },
+  {
+    "tagId": "tag:R_MAX_TS",
+    "short": "自旋温度半径",
+    "source": "src/SpinTemperatureBox.c:330（setup_z_edges 用它定红移壳层几何；源码无 docstring）"
+  },
+  {
+    "tagId": "tag:N_STEP_TS",
+    "short": "Ts 壳层数",
+    "source": "src/SpinTemperatureBox.c:120（按壳层数分配全局数组；源码无 docstring）"
+  },
+  {
+    "tagId": "tag:PHOTONCONS_CALIBRATION_END",
+    "short": "校准终止红移",
+    "source": "atlas/L0-pipeline.md:94（伪代码里的校准条件）+ atlas/L3-units.md#s1611-initialisephotoncons"
+  },
+  {
+    "tagId": "tag:PHOTON_CONS_TYPE",
+    "short": "光子守恒方案",
+    "source": "wrapper/inputs.py:1038 —— \"correction … photon non-conservation\"（四种取值）"
+  },
+  {
+    "tagId": "tag:USE_TS_FLUCT",
+    "short": "自旋温度涨落",
+    "source": "wrapper/inputs.py:1032 —— \"IGM spin temperature fluctuations (i.e. X-ray heating)\""
+  },
+  {
+    "tagId": "tag:USE_MINI_HALOS",
+    "short": "迷你晕开关",
+    "source": "wrapper/inputs.py:1020 —— \"using mini-halos parameterization\""
+  },
+  {
+    "tagId": "tag:USE_UPPER_STELLAR_TURNOVER",
+    "short": "高质端转折",
+    "source": "wrapper/inputs.py:1058 —— \"additional powerlaw in stellar mass fraction at high halo mass\""
+  },
+  {
+    "tagId": "tag:USE_EXP_FILTER",
+    "short": "指数滤波",
+    "source": "wrapper/inputs.py:1050 —— \"exponential filter (MFP-epsilon(r) from Davies & Furlanetto 2021)\""
+  },
+  {
+    "tagId": "tag:INTEGRATION_METHOD_ATOMIC",
+    "short": "原子晕积分法",
+    "source": "wrapper/inputs.py:1075 —— \"integration method … conditional MF integrals of atomic halos\""
+  },
+  {
+    "tagId": "tag:INTEGRATION_METHOD_MINI",
+    "short": "迷你晕积分法",
+    "source": "wrapper/inputs.py:1081 —— 同上（minihalos 版）"
+  }
+]
