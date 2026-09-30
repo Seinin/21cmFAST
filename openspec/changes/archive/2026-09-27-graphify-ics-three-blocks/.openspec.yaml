@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-09-27
+# 纯结构修正 + 工具链同步：让数据回到既有规则（graphify-code-topology 的
+# 「递归同构」「不等深的三至五层 / 无填充节点」）的字面要求，没有新的行为契约，
+# 因此不新增/修改任何 requirement（避免为过校验造一条假 requirement）。
+skip_specs: true

@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-09-28
+# 纯展示口径 + 命名口径修正：标签显示名回归原变量名、右侧属性面板按类别上色。
+# 没有新的行为契约（面板配色是外观、命名是文档口径），因此不新增/修改任何 requirement，
+# 避免为过校验造一条假 requirement；口径落在 README 的「参数标签」一节。
+skip_specs: true
