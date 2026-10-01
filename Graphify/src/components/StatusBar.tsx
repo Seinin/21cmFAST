@@ -5,10 +5,10 @@ import { relativeTime } from '../lib/utils'
 
 /** 本页自己的口径（物理链页）：画布那几个数在那里要么无意义、要么数的是另一份图 */
 export interface SelfStats {
-  /** 物理过程数（主链上的过程框） */
-  processes: number
-  /** 子过程数（主链阶段下辖的量与步骤） */
-  subprocesses: number
+  /** 过程块：一级 12 个块里"过程"那 10 个（L0 常数与网格层 / L1 共享内核层 是层，不算过程） */
+  processBlocks: number
+  /** 物理量：12 个块的成员里物理量的条数（28 个，不重不漏；层的 16 个头文件不算） */
+  quantities: number
   /** 参数数 */
   params: number
   /** 文献数（参数上出现的不重复出处） */
@@ -34,7 +34,7 @@ interface StatusBarProps {
  * 底部状态条：默认画布口径，另可选本页口径（`selfStats`）。
  *
  * 物理链页没有画布，也没有可选择、可保存的东西——把画布那几个数留在那里就是误导，
- * 于是它只报自己的规模：物理过程 / 子过程 / 参数 / 文献，外加当前打开的对象。
+ * 于是它只报自己的规模：过程块 / 物理量 / 参数 / 文献，外加当前打开的对象。
  */
 export function StatusBar({ layout, zoom, connectMode, visibleCount, selfStats }: StatusBarProps) {
   const saveState = useGraphStore((state) => state.saveState)
@@ -51,9 +51,9 @@ export function StatusBar({ layout, zoom, connectMode, visibleCount, selfStats }
     return (
       <footer className="pointer-events-auto flex h-8 shrink-0 items-center justify-between gap-4 border-t border-black/[0.07] bg-black/[0.04] px-3 text-micro text-muted-foreground backdrop-blur-md">
         <div className="flex min-w-0 items-center gap-3 tabular-nums">
-          <span>物理过程 {selfStats.processes}</span>
+          <span>过程块 {selfStats.processBlocks}</span>
           <span className="text-muted-foreground/40">|</span>
-          <span>子过程 {selfStats.subprocesses}</span>
+          <span>物理量 {selfStats.quantities}</span>
           <span className="text-muted-foreground/40">|</span>
           <span>参数 {selfStats.params}</span>
           <span className="text-muted-foreground/40">|</span>

@@ -21,48 +21,13 @@
 const BASE = process.argv[2] || 'http://127.0.0.1:5178'
 const SCOPE = process.argv[3] || null
 
-/* ---------------- 尺寸估计（与 src/graph/labels.ts 同口径） ----------------
- * labels.ts 是 TS，脚本里没法直接 import；这里按同一套公式重算，
- * 参数（正文 13 / 标题 18 / 内边距 / 上下限）必须与它保持一致，改了那边记得同步这里。 */
-const NODE_FONT = 13
-const GROUP_FONT = 18
-const GROUP_PADDING = 14
-const LINE_HEIGHT = 1.2
+/* ---------------- 尺寸估计 ----------------
+ * 尺寸口径**不在这个文件里**：统一来自 `scripts/lib/boxSize.mjs`（它逐字照抄
+ * `src/graph/labels.ts`，并在文件头写明"改一边要同步另一边"）。这里只把节点映射成
+ * 该口径要的入参——大框看 type，其余按标签。 */
+import { GAP, measureBoxSize, measureGroupSize } from './lib/boxSize.mjs'
 
-const textWidth = (text, fontSize) => {
-  const value = String(text ?? '')
-  const cjk = (value.match(/[\u3000-\u9fff\uff00-\uffef]/g) ?? []).length
-  return cjk * fontSize + (value.length - cjk) * fontSize * 0.55
-}
-
-function sizeOf(node) {
-  if (node.type === 'group') {
-    const inner = textWidth(node.label, GROUP_FONT)
-    return {
-      width: Math.round(Math.min(460, Math.max(170, inner + GROUP_PADDING * 2))),
-      height: Math.max(52, Math.round(GROUP_FONT * LINE_HEIGHT) + GROUP_PADDING * 2),
-    }
-  }
-  const natural = textWidth(node.label, NODE_FONT) + 20
-  const width = Math.round(Math.min(240, Math.max(116, natural)))
-  const wrapWidth = width - 20
-  let lines = 1
-  let current = ''
-  for (const char of String(node.label ?? '')) {
-    const next = current + char
-    if (current && textWidth(next, NODE_FONT) > wrapWidth) {
-      lines += 1
-      current = char
-    } else {
-      current = next
-    }
-  }
-  return { width, height: Math.max(38, Math.round(lines * NODE_FONT * LINE_HEIGHT) + 14) }
-}
-
-/* ---------------- 参数 ---------------- */
-/** 同层节点之间的统一间距：够分清彼此，又不浪费屏幕 */
-const GAP = 24
+const sizeOf = (node) => (node.type === 'group' ? measureGroupSize(node.label) : measureBoxSize(node.label))
 /**
  * 取景目标：典型画布可用区（1120×620 的画布减去 fit 的 160 内边距）。
  * 列数就是按「整层塞进这个矩形后还剩多少倍（= 字多大）」来选的。

@@ -7,6 +7,7 @@ import {
   ExternalLink,
   FileCode,
   FileText,
+  Info,
   Link2,
   PanelRightOpen,
   Plus,
@@ -38,7 +39,8 @@ import {
   type Topic,
 } from '../lib/types'
 import { PANEL_RAIL_WIDTH } from '../hooks/usePanelWidth'
-import { NodeTagEditor, NodeTagSection } from './NodeTags'
+import { NodeTagSection } from './NodeTags'
+import { canEditNodeTags, tagDisplayOf } from '../lib/tagEdit'
 
 /** 节点的一条关系（跨层的也列出：画布只画同视图内的边，其余在这里看） */
 export interface RelationItem {
@@ -51,6 +53,32 @@ export interface RelationItem {
   outgoing: boolean
   /** 对端是否在当前标签页可见（跨层关系为 false） */
   sameView: boolean
+}
+
+/**
+ * 「块」这一层的事实：由页面从生成物（物理链页读 `physics-chain.json` 的 `graph.blocks.items`）
+ * 读出来喂进来。检查器**不认识物理链**——通用页不传它，这一段就整段不出现；
+ * 传了它就只按下面这几组数据渲染，自己不推算任何东西。
+ */
+export interface BlockDetail {
+  /** 块类型的人话标签（「过程 / 可进入」还是「层 / 不可进入」由调用方给出） */
+  kindLabel: string
+  /** 是不是**层**（L0 常数与网格层 / L1 共享内核层）：成员是文件、成员之间没有因果连线 */
+  isLayer: boolean
+  /**
+   * 块的一级注释（真源 `blocks.items[].note`）：为什么这么切，以及量化事实——
+   * L1 那句里逐个写着"头文件 被几个 `.c` 引用"（如 `cosmology.h 21`），是这一层唯一的量化呈现。
+   */
+  note?: string
+  /**
+   * 成员明细：点一下即选中该成员。
+   *
+   * `stage` 是**成员自己**的属性（`S14` 这类阶段号），在成员行右侧当窄列显示；
+   * 块自己的阶段号并集（`block.stages`）已没有界面出口，不进这里。
+   */
+  members: { id: string; label: string; stage: string }[]
+  /** 有没有子图可进（层一定不可进入） */
+  enterable: boolean
 }
 
 interface InspectorProps {
@@ -84,10 +112,37 @@ interface InspectorProps {
   groupOptions?: { id: string; label: string }[]
   /** 选中节点的直系子节点数（模块 > 0 时显示「进入子图 ↗」） */
   childCount?: number
+  /**
+   * **当前这一页的节点表**：有子图的模块显示的标签要按"当前子树叶子并集"现算，离了它算不出来。
+   * 画布页递 `graph.nodes`；物理链页**不递**——那一页的块标签是生成物烘好的，照读即可
+   * （见 `lib/tagEdit.ts` 的 `tagDisplayOf`）。
+   */
+  nodes?: readonly GraphNode[]
   /** 进入该模块的子图标签页（仅模块显示） */
   onEnterSubgraph?: () => void
+  /**
+   * **这一页**的标签能不能改（默认能）。物理链页整页读生成物 → 传 `false`：
+   * 那一页的标签是生成器烘好的，在页面上改它等于让屏幕跟产物对不上。
+   * 它与"**这个节点**能不能改"是两件事——后者看有没有子图（`lib/tagEdit.ts`），
+   * 两个条件都成立才给编辑入口。
+   */
+  tagsEditable?: boolean
   /** 选中节点的全部关系（含跨层），点击可选中该关系 */
   relations?: RelationItem[]
+  /**
+   * 选中的是「块」时，块这一层的事实（成员明细）。
+   * 通用页不传 → 整段不出现；物理链页传 → 块属性页就是这两样，不另画一个面板。
+   */
+  blockDetail?: BlockDetail | null
+  /** 点成员明细里的某个成员：选中它（块属性页要能从块走进成员） */
+  onSelectNode?: (id: string) => void
+  /**
+   * **灰显的对外输入**（物理链的块子图）：选中的这个量是被当前块"读"的、算在别的块里的外部输入。
+   *
+   * 文案由**页面**算好递进来（检查器不认识物理链）：检查器只负责把它摆在最上面说清身份——
+   * 没有这一句，用户看到的就是"一个灰着的、点开却什么都没有的盒子"。
+   */
+  contextNote?: string | null
   /** 全局标签注册表：标签编辑从这里多选，明细区块用它显示名称与说明 */
   tagRegistry?: TagDefinition[]
   /** 由点画布红点带过来的标签 id：该标签的明细自动展开 */
@@ -136,8 +191,13 @@ export function Inspector({
   evidence = 'inline',
   groupOptions = [],
   childCount = 0,
+  tagsEditable = true,
+  nodes,
   onEnterSubgraph,
   relations = [],
+  blockDetail = null,
+  onSelectNode,
+  contextNote = null,
   onSelectRelation,
   relationsHidden = false,
   onToggleRelations,
@@ -184,6 +244,20 @@ export function Inspector({
   const commitSummary = () => {
     if (node && summary !== node.summary) onPatchNode({ summary: summary.trim() })
   }
+
+  /**
+   * 只读那句说明要说清"为什么不给编"——两种身份两句话，不能混成一句糊弄：
+   *   · 有子图的（模块 / 块）：它的标签是子图里所有叶子标签的并集，改它没有意义，得去成员上改；
+   *   · 没子图却仍然只读的（物理链页的成员量）：整页读生成物，这一页就没有编辑入口。
+   */
+  /**
+   * 这个节点**此刻显示的**标签（面板与画布红点同一份口径）：有子图的模块是当前子树叶子并集，
+   * 叶子照读自己那份，没递节点表（物理链页）也照读数据里那份——口径只有 `tagDisplayOf` 一处。
+   */
+  const tagDisplay = node ? tagDisplayOf(nodes, node) : { tags: [], tagDetails: {} }
+
+  const tagReadOnlyNote =
+    childCount > 0 ? '只读 · 标签来自子图成员，要改去成员上改' : '只读 · 这一页只读，标签来自源码扫描'
 
 
 
@@ -350,6 +424,63 @@ export function Inspector({
     )
   }
 
+  /**
+   * 「块」这一段（只有调用方传了 `blockDetail` 才出现）：成员明细。
+   *
+   * 块不是一个"名字 + 摘要"的盒子，它的物理含义是**装了哪些量**（成员）。
+   *
+   * **不再有「代码锚 / 阶段号」这两行**（用户口径 2026-10-01）：它们点不开、给不出可核验的
+   * 落点；块算在哪段代码里改由两个入口回答——「看实现」列出成员与步骤汇总来的落点，
+   * 「看文献」列出笔记文档，两者都可点即开。字段本身仍在生成物里（`codeAnchor` 是
+   * "与代码同构"的可证伪依据、`stages` 是检索命中面），只是不再有界面出口。
+   *
+   * **不列对外接口**（用户口径 2026-09-30）：跨块送了什么在画布上悬浮块时就看得见
+   * （接口边静息不画、悬浮显现，见 `graph/styles.ts` 的 `edge[?focusOnly]`），
+   * 右侧栏再铺一张进出清单是重复。
+   *
+   * 成员列表可点 → 选中该成员。
+   */
+  const renderBlock = (block: BlockDetail) => {
+    const rowClass =
+      'flex w-full cursor-pointer items-center gap-1.5 rounded-md border border-black/[0.07] bg-black/[0.03] px-2.5 py-1.5 text-left transition-colors hover:border-primary/35 hover:bg-primary/[0.06]'
+    return (
+      <section className="flex flex-col gap-2">
+        <h3 className="text-micro font-semibold uppercase tracking-wide text-muted-foreground/80">
+          块 · {block.kindLabel}
+        </h3>
+
+        {/* 块的一级注释：为什么这么切 + 量化事实（L1 的 #include 计数就在这句里） */}
+        {block.note ? (
+          <p className="text-micro leading-relaxed text-muted-foreground/85">{block.note}</p>
+        ) : null}
+
+        <div className="flex items-center justify-between">
+          <h4 className="text-micro font-medium text-foreground/85">成员明细（{block.members.length}）</h4>
+          <span className="shrink-0 text-micro text-muted-foreground/70">
+            {block.enterable ? '块内连通 · 可进入' : block.isLayer ? '横切层 · 不可进入' : '成员互不相连 · 不可进入'}
+          </span>
+        </div>
+        <ul className="flex flex-col gap-1">
+          {block.members.map((member) => (
+            <li key={member.id}>
+              <button
+                type="button"
+                onClick={() => onSelectNode?.(member.id)}
+                title={member.label}
+                className={rowClass}
+              >
+                <span className="min-w-0 flex-1 truncate text-micro text-foreground/90">{member.label}</span>
+                <span className="shrink-0 font-mono text-micro text-muted-foreground/70">
+                  {member.stage || '—'}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
   const open = Boolean(node || edge)
 
   return (
@@ -377,7 +508,7 @@ export function Inspector({
                   <div className="flex items-center gap-2">
                     <DotBadge color={NODE_TYPE_COLORS[node.type]}>{NODE_TYPE_LABELS[node.type]}</DotBadge>
                     <Badge tone="muted">
-                      {node.refs.length} 引用 · {node.tags.length} 标签
+                      {node.refs.length} 引用 · {tagDisplay.tags.length} 标签
                     </Badge>
                   </div>
                   <h2 className="mt-2 truncate text-tiny font-semibold text-foreground/92" title={node.label}>
@@ -416,6 +547,17 @@ export function Inspector({
 
               <ScrollArea className="min-h-0 flex-1" viewportClassName="px-3.5 py-3">
                 <div className="flex flex-col gap-3">
+                  {/*
+                    灰显的对外输入先亮身份：它是**别的块**的量，本块只是读它。
+                    措辞由页面给（含"算在哪一块里"），这里不编物理。
+                  */}
+                  {contextNote ? (
+                    <div className="flex items-start gap-2 rounded-md border border-slate-300/70 bg-slate-500/[0.06] px-2.5 py-2">
+                      <Info className="mt-[2px] h-3 w-3 shrink-0 text-slate-500" />
+                      <p className="text-micro leading-relaxed text-muted-foreground/90">{contextNote}</p>
+                    </div>
+                  ) : null}
+
                   <Field label="节点名称">
                     <Input
                       value={label}
@@ -443,25 +585,23 @@ export function Inspector({
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="标签数" hint="明细见下方「全局标签」">
+                    <Field label="标签数" hint="看和改都在下方「全局标签」里（只有叶子能编）">
                       <div className="flex h-8 items-center rounded-md border border-black/10 bg-black/[0.03] px-2.5 text-micro text-muted-foreground">
-                        {node.tags.length} 个已归属
+                        {tagDisplay.tags.length} 个已归属
                       </div>
                     </Field>
                   </div>
 
-                  {/* 全局标签：从注册表多选，也可当场新建（自由文本输入已移除）。
-                      容器只作分组，不参与标签/关系，所以整块对它不显示。 */}
-                  {node.type !== 'group' ? (
-                    <Field plain label="全局标签" hint="勾选注册表里的标签；画布上点红点看明细">
-                      <NodeTagEditor
-                        node={node}
-                        registry={tagRegistry}
-                        onPatchNode={onPatchNode}
-                        onCreateTag={onCreateTag}
-                      />
-                    </Field>
-                  ) : null}
+                  {/*
+                    这里原先有一行「阶段号」（生成物写在**量**上的只读属性 `codeHints` 的第一段）。
+                    已撤（用户口径 2026-10-01）：它是点不开的摘要，回答不了"这段代码在哪"；
+                    量的落点改由「看实现」给（文件 + 行区间，可点即开）。字段与检索命中口径不动
+                    （按 `S14` 检索仍能命中，命中说明里的「代码 S14」保持）。
+                  */}
+
+                  {/* 全局标签的编辑入口**不在这里**：它跟着明细一起住在下方那唯一的
+                      「全局标签」区块的标题行里（见 NodeTags.tsx 的 NodeTagSection）。
+                      从前这里另有一排可编的胶囊，同一份归属有两处实现，已撤销。 */}
 
                   {/* 大框归属：手动建立层级的第二种入口（第一种是画布上把节点拖进大框） */}
                   <Field label="所属大框" hint="画布上拖进框里也可以">
@@ -525,6 +665,9 @@ export function Inspector({
                     />
                   </Field>
 
+                  {/* 块属性页（成员明细）：物理在前，所以紧跟摘要 */}
+                  {blockDetail ? renderBlock(blockDetail) : null}
+
                   {evidence === 'inline' ? (
                     <>
                       <Separator />
@@ -534,18 +677,21 @@ export function Inspector({
 
                   <Separator />
 
-                  {/* 全局标签明细：标签在**这个节点**上具体是什么（如「参数参与」下的参数名 · 用法 · 出处）。
+                  {/* 全局标签：**唯一**一处区块（标题行右侧就是编辑入口，标题由区块自带）。
+                      显示的是"这个节点此刻的标签"——有子图的是子树叶子并集（由 tagEdit 算好递进去）。
                       容器不参与标签，整块跳过。 */}
                   {(node.type !== 'group' || node.tags.length > 0) ? (
                     <section className="flex flex-col gap-2">
-                      <h3 className="text-micro font-semibold uppercase tracking-wide text-muted-foreground/80">
-                        全局标签
-                      </h3>
                       <NodeTagSection
-                        node={node}
+                        tags={tagDisplay.tags}
+                        tagDetails={tagDisplay.tagDetails}
                         registry={tagRegistry}
                         activeTagId={activeTagId}
                         onOpenRef={onOpenRef}
+                        editable={tagsEditable && canEditNodeTags(node, childCount)}
+                        readOnlyNote={tagReadOnlyNote}
+                        onPatchNode={onPatchNode}
+                        onCreateTag={onCreateTag}
                       />
                     </section>
                   ) : null}

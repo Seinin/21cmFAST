@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, ExternalLink, Plus, Tag, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, ExternalLink, Plus, Tag } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
@@ -12,6 +12,7 @@ import {
   type GraphRef,
   type TagDefinition,
   type TagDetailItem,
+  type TagDetailMap,
 } from '../lib/types'
 
 /**
@@ -33,25 +34,28 @@ function accentVars(accent: string): React.CSSProperties {
 }
 
 /**
- * 标签编辑：从**注册表**里多选，也可以当场新建。
+ * 标签编辑入口：从**注册表**里多选，也可以当场新建。
+ *
+ * 入口只有这一处（标签区块的标题行）——曾经那排「胶囊 + ×」是同一份归属的第二处实现，
+ * 已删除：摘标签走这里的取消勾选（见 openspec 变更 `graphify-tag-edit-leaf-only` 的 D1 / D4）。
  *
  * 自由文本输入已经移除——落盘数据里只允许出现注册表里的 id，
  * 否则「改名不动归属」这条承诺就不成立（名字变了，归属就找不到自己了）。
  */
-export function NodeTagEditor({
-  node,
+export function TagEditButton({
+  tagIds,
   registry,
   onPatchNode,
   onCreateTag,
 }: {
-  node: GraphNode
+  /** 当前已归属的标签 id（有子图的节点传的是子树并集，见变更 D7） */
+  tagIds: string[]
   registry: TagDefinition[]
   onPatchNode: (patch: Partial<GraphNode>) => void
   onCreateTag?: (name: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const byId = useMemo(() => new Map(registry.map((tag) => [tag.id, tag])), [registry])
 
   const candidates = useMemo(() => {
     const keyword = query.trim().toLowerCase()
@@ -62,7 +66,7 @@ export function NodeTagEditor({
   const exact = query.trim() && registry.some((tag) => tag.name.trim() === query.trim())
 
   const toggle = (tagId: string) => {
-    const next = node.tags.includes(tagId) ? node.tags.filter((id) => id !== tagId) : [...node.tags, tagId]
+    const next = tagIds.includes(tagId) ? tagIds.filter((id) => id !== tagId) : [...tagIds, tagId]
     // 明细由服务端按新归属裁剪：摘掉标签，它的明细一并消失，不留悬空数据
     onPatchNode({ tags: next })
   }
@@ -76,100 +80,71 @@ export function NodeTagEditor({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      {node.tags.map((tagId) => {
-        const def = byId.get(tagId)
-        // 类别色：数据里的 color 优先，缺省按 group 派生（见 palette 的 tagAccentOf）
-        const accent = tagAccentOf(def ?? {})
-        return (
-          <span
-            key={tagId}
-            className="flex items-center gap-0.5 rounded-full border border-[var(--tag-accent-25)] bg-[var(--tag-accent-8)] py-[1px] pl-2 pr-1 text-micro text-[var(--tag-accent)]"
-            style={accentVars(accent)}
-          >
-            {/* 名字区只显示不可点：删除只认叉号本身，避免误删（外层 Field 也不再包 label，见 ui/input.tsx） */}
-            <span className="cursor-default select-none">{def?.name ?? tagId}</span>
-            <button
-              type="button"
-              aria-label={`移除标签 ${def?.name ?? tagId}`}
-              title="移除标签"
-              onClick={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                toggle(tagId)
-              }}
-              className="flex h-3 w-3 shrink-0 cursor-pointer items-center justify-center rounded-full text-[var(--tag-accent-70)] transition-colors hover:bg-[var(--tag-accent-20)] hover:text-[var(--tag-accent)]"
-            >
-              <X className="h-2.5 w-2.5" />
-            </button>
-          </span>
-        )
-      })}
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="flex cursor-pointer items-center gap-1 rounded-full border border-dashed border-black/15 px-2 py-[1px] text-micro text-muted-foreground transition-colors hover:border-black/25 hover:text-foreground"
-          >
-            <Plus className="h-2.5 w-2.5" />
-            标签
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[240px] p-0" align="start">
-          <div className="border-b border-black/[0.06] p-1.5">
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !exact && query.trim()) create()
-              }}
-              placeholder="搜索或输入新标签"
-              className="h-7 text-micro"
-              aria-label="搜索或新建标签"
-            />
-          </div>
-          <div className="max-h-[220px] overflow-y-auto p-1">
-            {candidates.map((tag) => {
-              const checked = node.tags.includes(tag.id)
-              const accent = tagAccentOf(tag)
-              return (
-                <button
-                  key={tag.id}
-                  type="button"
-                  role="checkbox"
-                  aria-checked={checked}
-                  onClick={() => toggle(tag.id)}
-                  title={tag.description || undefined}
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-black/[0.05]"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title="从注册表里选，或新建一个"
+          className="flex cursor-pointer items-center gap-1 rounded-full border border-dashed border-black/15 px-2 py-[1px] text-micro text-muted-foreground transition-colors hover:border-black/25 hover:text-foreground"
+        >
+          <Plus className="h-2.5 w-2.5" />
+          标签
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[240px] p-0" align="start">
+        <div className="border-b border-black/[0.06] p-1.5">
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !exact && query.trim()) create()
+            }}
+            placeholder="搜索或输入新标签"
+            className="h-7 text-micro"
+            aria-label="搜索或新建标签"
+          />
+        </div>
+        <div className="max-h-[220px] overflow-y-auto p-1">
+          {candidates.map((tag) => {
+            const checked = tagIds.includes(tag.id)
+            const accent = tagAccentOf(tag)
+            return (
+              <button
+                key={tag.id}
+                type="button"
+                role="checkbox"
+                aria-checked={checked}
+                onClick={() => toggle(tag.id)}
+                title={tag.description || undefined}
+                className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-black/[0.05]"
+              >
+                <span
+                  className={cn(
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors',
+                    checked
+                      ? 'border-[var(--tag-accent)] bg-[var(--tag-accent)] text-white'
+                      : 'border-black/20 bg-white/70',
+                  )}
+                  style={accentVars(accent)}
                 >
-                  <span
-                    className={cn(
-                      'flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors',
-                      checked
-                        ? 'border-[var(--tag-accent)] bg-[var(--tag-accent)] text-white'
-                        : 'border-black/20 bg-white/70',
-                    )}
-                    style={accentVars(accent)}
-                  >
-                    {checked ? '✓' : null}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-micro text-[var(--tag-accent)]">{tag.name}</span>
-                </button>
-              )
-            })}
-            {query.trim() && !exact ? (
-              <Button variant="secondary" size="sm" className="mt-1 w-full" onClick={create}>
-                <Plus className="h-3 w-3" />
-                新建标签「{query.trim()}」
-              </Button>
-            ) : null}
-            {!candidates.length && !query.trim() ? (
-              <p className="px-2 py-3 text-micro text-muted-foreground">注册表里还没有标签</p>
-            ) : null}
-          </div>
-        </PopoverContent>
-      </Popover>
-    </div>
+                  {checked ? '✓' : null}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-micro text-[var(--tag-accent)]">{tag.name}</span>
+              </button>
+            )
+          })}
+          {query.trim() && !exact ? (
+            <Button variant="secondary" size="sm" className="mt-1 w-full" onClick={create}>
+              <Plus className="h-3 w-3" />
+              新建标签「{query.trim()}」
+            </Button>
+          ) : null}
+          {!candidates.length && !query.trim() ? (
+            <p className="px-2 py-3 text-micro text-muted-foreground">注册表里还没有标签</p>
+          ) : null}
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -208,21 +183,39 @@ function DetailRow({ item, onOpenRef }: { item: TagDetailItem; onOpenRef: (ref: 
 }
 
 /**
- * 属性面板的标签区块：列出本节点的标签（名称 + 说明），按标签展开明细。
+ * 属性面板的标签区块——**全局唯一一处**标签区块（标题行右侧就是编辑入口）。
+ *
+ * 为什么标题行要搬进区块里：编辑入口（`TagEditButton`）与明细必须并排出现在同一处，
+ * 拆成"上面一排可编的、下面一片明细"正是从前长出第二处实现的原因
+ * （见 openspec 变更 `graphify-tag-edit-leaf-only` 的 D1 / D4）。
  *
  * 明细条目就是「这个标签在这一处具体是什么」——参数参与标签里是
  * 「参数名 · 用法（赋值/入公式/开关）· 出处行号」，出处可点开对照源码。
+ * 有子图的节点，这里列的是**当前子树叶子标签的并集**（由调用方算好递进来，本组件不猜）。
  */
 export function NodeTagSection({
-  node,
+  tags,
+  tagDetails,
   registry,
   activeTagId,
   onOpenRef,
+  editable,
+  readOnlyNote,
+  onPatchNode,
+  onCreateTag,
 }: {
-  node: GraphNode
+  /** 要显示的那一份归属：叶子是自己那份；有子图的是子树叶子的并集（见 lib/tagEdit.ts） */
+  tags: string[]
+  tagDetails: TagDetailMap
   registry: TagDefinition[]
   activeTagId?: string | null
   onOpenRef: (ref: GraphRef) => void
+  /** 能不能在这增删（只有叶子能，判据见 lib/tagEdit.ts 的 canEditNodeTags） */
+  editable: boolean
+  /** 只读时标题行右侧那句说明；理由由调用方按身份给（标签来自子图成员 / 整页只读） */
+  readOnlyNote: string
+  onPatchNode: (patch: Partial<GraphNode>) => void
+  onCreateTag?: (name: string) => void
 }) {
   const [expanded, setExpanded] = useState<string[]>(() => (activeTagId ? [activeTagId] : []))
   const byId = useMemo(() => new Map(registry.map((tag) => [tag.id, tag])), [registry])
@@ -233,19 +226,27 @@ export function NodeTagSection({
     setExpanded((prev) => (prev.includes(activeTagId) ? prev : [...prev, activeTagId]))
   }, [activeTagId])
 
-  if (!node.tags.length) {
-    return (
-      <p className="rounded-md border border-dashed border-black/10 px-2.5 py-3 text-micro leading-relaxed text-muted-foreground">
-        这个节点还没有全局标签。点上方「标签」从注册表里选，或新建一个。
-      </p>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-1.5">
-      {node.tags.map((tagId) => {
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-micro font-semibold uppercase tracking-wide text-muted-foreground/80">全局标签</h3>
+        {/* 两种身份各一条分支：可编 → 入口；只读 → 一句话说清为什么不给编 */}
+        {editable ? (
+          <TagEditButton tagIds={tags} registry={registry} onPatchNode={onPatchNode} onCreateTag={onCreateTag} />
+        ) : (
+          <span className="max-w-[62%] text-right text-[10px] leading-tight text-muted-foreground/70">
+            {readOnlyNote}
+          </span>
+        )}
+      </div>
+      {!tags.length ? (
+        <p className="rounded-md border border-dashed border-black/10 px-2.5 py-3 text-micro leading-relaxed text-muted-foreground">
+          {editable ? '还没有全局标签。点右上「标签」从注册表里选，或新建一个。' : `当前没有标签。${readOnlyNote}`}
+        </p>
+      ) : null}
+      {tags.map((tagId) => {
         const def = byId.get(tagId)
-        const items = node.tagDetails?.[tagId] ?? []
+        const items = tagDetails[tagId] ?? []
         const isOpen = expanded.includes(tagId)
         // 整行按类别上色（边框 / 淡底 / 图标 / 名字）；计数、展开箭头与行分隔线保持中性
         const accent = tagAccentOf(def ?? {})

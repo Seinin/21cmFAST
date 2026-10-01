@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown'
 import { useGraphStore } from '../state/graphStore'
+import { tagDisplayOf } from '../lib/tagEdit'
 import { cn, relativeTime } from '../lib/utils'
 import { graphTopics, topicVisibleCount } from '../lib/topics'
 import { LAYOUT_LABELS, type LayoutKind } from '../graph/layout'
@@ -187,13 +188,20 @@ export function TopBar({
     return topics.filter((topic) => topic.name.toLowerCase().includes(keyword))
   }, [topics, topicQuery])
 
-  /** 全局标签注册表 + 每个标签的命中节点数（勾选后亮红点） */
+  /**
+   * 全局标签注册表 + 每个标签的命中节点数（勾选后亮红点）。
+   *
+   * 计数走 `tagDisplayOf`——与画布红点是**同一份口径**：有子图的模块算的是它当前子树叶子
+   * 标签的并集，所以这个数就是「勾上之后会亮几个点」，两端对得上（见 lib/tagEdit.ts）。
+   */
   const tags = useMemo(() => {
     const registry = graph.meta.tags ?? []
     if (!registry.length) return []
     const counts = new Map<string, number>()
     graph.nodes.forEach((node) => {
-      ;(node.tags ?? []).forEach((tagId) => counts.set(tagId, (counts.get(tagId) ?? 0) + 1))
+      tagDisplayOf(graph.nodes, node).tags.forEach((tagId) =>
+        counts.set(tagId, (counts.get(tagId) ?? 0) + 1),
+      )
     })
     return registry.map((tag) => ({ ...tag, count: counts.get(tag.id) ?? 0 }))
   }, [graph])

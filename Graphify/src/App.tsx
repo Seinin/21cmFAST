@@ -26,7 +26,7 @@ import { EdgeDialog, NodeDialog, type EdgeFormValues, type NodeFormValues } from
 import { DEFAULT_LAYOUT_KIND, type LayoutKind } from './graph/layout'
 import { buildHierarchy, tabVisibleIds } from './graph/hierarchy'
 import { graphTopics, topicVisibility, topicVisibilityFingerprint, type TopicVisibility } from './lib/topics'
-import { CHAIN_GRAPH, COLLAPSED_LAYER_LABEL, chainStats, isCollapsedLayerObject } from './lib/physicsChain'
+import { CHAIN_GRAPH, ENGINEERING_LABEL, chainStats, isEngineeringObject } from './lib/physicsChain'
 import { codeRefLocation, descendantIdsOf, isCodeRef, type GraphRef, type NodePosition } from './lib/types'
 import { TooltipProvider } from './components/ui/tooltip'
 
@@ -684,7 +684,7 @@ export default function App() {
   const chainSelfStats = useMemo(() => chainStats(), [])
   /** 命中项来源徽标：属于收起层（旁路与实现细节）的才标，其余走默认「节点 / 关系」 */
   const chainBadgeOf = useCallback(
-    (kind: 'node' | 'edge', id: string) => (isCollapsedLayerObject(kind, id) ? COLLAPSED_LAYER_LABEL : null),
+    (kind: 'node' | 'edge', id: string) => (isEngineeringObject(kind, id) ? ENGINEERING_LABEL : null),
     [],
   )
 
@@ -886,6 +886,8 @@ export default function App() {
                 groupOptions={groupOptions}
                 childCount={selectedNode ? (childrenCountOf.get(selectedNode.id) ?? 0) : 0}
                 onEnterSubgraph={() => selectedNode && enterSubgraph(selectedNode.id)}
+                // 有子图的模块显示的标签 = 当前子树叶子并集：节点表递给面板，口径由 lib/tagEdit 统一算
+                nodes={graph.nodes}
                 tagRegistry={graph.meta.tags ?? []}
                 activeTagId={activeTagId}
                 onCreateTag={createTag}

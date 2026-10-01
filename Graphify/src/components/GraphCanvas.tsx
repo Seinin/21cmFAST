@@ -109,6 +109,12 @@ function placeOverlay(
 export interface GraphCanvasProps {
   /** 标签页焦点：null = 主图；否则是某个模块的 id。渲染器实例的可见集由它静态决定 */
   focusId: string | null
+  /**
+   * 标签口径（缺省 `true`）：有子图的模块用**当前子树叶子并集**（画布页，与属性面板同一份）；
+   * 物理链页传 `false` 照读生成物里烘好的那份（见 `lib/tagEdit.ts` 的 `tagDisplayOf`）。
+   * 只影响红点与命中，不改任何数据。
+   */
+  tagUnion?: boolean
   /** 是否当前激活的标签页：隐藏标签页（display:none）不取景、不重排，激活时只需 resize */
   active: boolean
   ready: boolean
@@ -301,7 +307,7 @@ export function GraphCanvas(props: GraphCanvasProps) {
           if (propsRef.current.active) propsRef.current.onVisibilityChange?.(info)
         },
       },
-      { focusId: props.focusId },
+      { focusId: props.focusId, tagUnion: props.tagUnion },
     )
 
     renderer.mount(container)

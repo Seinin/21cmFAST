@@ -212,6 +212,58 @@ export function buildStylesheet(): Rule[] {
   ]
 
   /**
+   * 「层」（`blockKind = "layer"`：L0 常数与网格层 / L1 共享内核层）：横切各块，**不可进入**。
+   *
+   * 与"过程块"的区别只落在一处：把 `.branch` 那圈光晕收掉——
+   * 在这一页光晕就是"双击还能进去"的信号，层没有可进的东西（L1 的成员是头文件），不该带这个信号。
+   *
+   * **刻意不用虚线**：虚线已被「条件/可选」占用（见 `node.conditional` 与 `node.container` 的注释），
+   * 同一个形状承担两种含义就没人分得清了。
+   */
+  const layerRules: Rule[] = [
+    {
+      selector: 'node[blockKind = "layer"]',
+      style: { 'underlay-opacity': 0, 'background-opacity': 0.08 } as unknown as Rule['style'],
+    },
+  ]
+
+  /**
+   * **灰显的对外输入（上下文节点）**：进到某个块的子图里时，块外指进来的量会在旁边显形
+   * （`contexts`，见 `graph/hierarchy.ts` 的 `tabContextIds`）。
+   *
+   * 它们**不是这一块要算的东西**——本块只是读它。所以画灰、画淡、压到下面一层；
+   * 而它的来处仍然是主图里那个量本身（同一个 id、同一份数据，没有第二份），
+   * 点开属性页会写明"这是外部输入、只读"。
+   *
+   * **刻意不用虚线**：虚线在这张画布上已被「条件/可选」占用（见 `node.conditional`）。
+   */
+  const contextRules: Rule[] = [
+    {
+      selector: 'node.context',
+      style: {
+        'background-color': '#64748B',
+        'background-opacity': 0.06,
+        'border-color': '#94A3B8',
+        'border-opacity': 0.7,
+        color: '#64748B',
+        opacity: 0.72,
+        // 压在成员之下：读的顺序是"这一块算什么"在前，"它读了什么"在后
+        'z-index': 6,
+      } as unknown as Rule['style'],
+    },
+    {
+      selector: 'edge.context-edge',
+      style: {
+        'line-color': '#94A3B8',
+        'target-arrow-color': '#94A3B8',
+        'line-opacity': 0.55,
+        width: 1.2,
+        color: '#94A3B8',
+      } as Rule['style'],
+    },
+  ]
+
+  /**
    * 端口规则：存了端口就吸到那条边的中点；没存则沿用基类的 `outside-to-node`。
    * 用属性选择器而不是类名，省掉「渲染器要记得同步类名」这条容易漏的链路。
    */
@@ -421,6 +473,11 @@ export function buildStylesheet(): Rule[] {
         'line-opacity': 0.75,
       } as Rule['style'],
     },
+    /**
+     * 对外输入的灰显样式：放在基础 `edge` 规则之后，才能压过它的线宽与颜色。
+     * （节点的 `.context` 同理：要压过按 `type` 给的描边颜色。）
+     */
+    ...contextRules,
     {
       selector: 'edge[type = "relates_to"]',
       style: { 'line-style': 'dashed' } as Rule['style'],
@@ -508,6 +565,25 @@ export function buildStylesheet(): Rule[] {
       style: { 'line-opacity': 0.22, 'text-opacity': 0.15 } as Rule['style'],
     },
     /**
+     * **接口边（`focusOnly`）：静息不画，悬浮它两端的块时才显现**（用户口径 2026-09-30）。
+     *
+     * 一级只有 12 个块，块间那 21 条接口边若常显，画布会被箭头与量名糊满；
+     * 把它们压到 0、只留"指针停在某个块上"这一刻读取——读法变成
+     * 「一个块 + 它的进出口」，与模块那套（`.highlighted` 放大 + 亮边）是同一个手势。
+     *
+     * ⚠ 必须写在 `edge.dimmed` **之后**：cytoscape 是"后写的规则胜"，
+     * 放在前面会被 `dimmed` 的 `line-opacity: 0.22` 盖回来，未悬浮的接口边会一直露着。
+     * 反过来 `.highlighted`（悬浮时挂上的类）要能压过这里的 0，所以它的规则排在更后面。
+     */
+    {
+      selector: 'edge[?focusOnly]',
+      style: { opacity: 0, 'line-opacity': 0, 'text-opacity': 0, events: 'no' } as Rule['style'],
+    },
+    {
+      selector: 'edge[?focusOnly].highlighted',
+      style: { opacity: 1, 'line-opacity': 1, 'text-opacity': 1, events: 'yes' } as Rule['style'],
+    },
+    /**
      * 标签隐藏档：标签已写进方框，因此**不再按重叠省略**（方框里的文字就是框的内容，
      * 省略了只会得到一排空框）。这里保留该类是为了兼容旧的选择器与「叠加显示」链路：
      * 渲染器不会再给节点挂上它，除非将来重新启用省略策略。
@@ -536,5 +612,5 @@ export function buildStylesheet(): Rule[] {
     { selector: ':active', style: { 'overlay-opacity': 0 } as Rule['style'] },
   ]
 
-  return [...rules, ...branchRules, ...stateRules]
+  return [...rules, ...branchRules, ...layerRules, ...stateRules]
 }

@@ -183,15 +183,39 @@ check(
 )
 
 /**
- * 全局标签：勾选后**持有该标签的模块**左上角亮红点；容器不亮；没勾选时不亮。
+ * 全局标签：勾选后**显示该标签的节点**左上角亮红点。口径只有一份（`src/lib/tagEdit.ts`
+ * 的 `tagDisplayOf`）：叶子看自己那份，**有子图的模块看子树叶子并集**（自己那份不参与），容器不参与。
+ * 于是"在叶子上勾一个参数，它的模块祖先跟着亮"是这一段的重点，而"模块自己挂的标签"不点红点。
  * 红点画在节点自己的背景位图上，所以这里断言的是状态类与命中判定，不是 DOM。
  */
 styleCheck('未勾选任何标签时没有红点', cy.$('node.tagged').length, 0)
 renderer.setActiveTags(['tag:demo'])
-styleCheck('勾选后命中的模块亮红点', cy.$('#A1').hasClass('tagged'), true)
 styleCheck('容器不亮红点（容器不参与标签）', cy.$('#A').hasClass('tagged'), false)
 styleCheck('未被标的模块不亮红点', cy.$('#L').hasClass('tagged'), false)
-styleCheck('标签 id 写进了节点数据', (cy.$('#A1').data('tagIds') || []).join(','), 'tag:demo')
+/*
+ * 有子图的模块：显示的标签是**子树叶子标签的并集**（现算），它自己那份**不参与显示**。
+ * 所以合成图里 A1 虽然自己挂着 `tag:demo`（A1a 是叶子、没标签），勾选后它也**不该**亮——
+ * 这一条正是从旧口径换过来的地方（旧口径下这里会亮，红点是按"自己那份"点的）。
+ */
+styleCheck('有子图的模块：自己那份标签不参与显示（勾选后不亮）', cy.$('#A1').hasClass('tagged'), false)
+styleCheck('有子图的模块：自己那份没写进 tagIds', (cy.$('#A1').data('tagIds') || []).join(','), '')
+// 把标签挂到它的叶子上 → 祖先立刻亮（并集），tagIds 就是这个并集
+const leafOfA1 = nodes.find((item) => item.id === 'A1a')
+leafOfA1.tags = ['tag:demo']
+renderer.sync(graph)
+await new Promise((r) => setTimeout(r, 50))
+styleCheck('叶子挂上标签后，有子图的祖先立刻亮红点', cy.$('#A1').hasClass('tagged'), true)
+styleCheck('祖先的 tagIds 是子树叶子并集', (cy.$('#A1').data('tagIds') || []).join(','), 'tag:demo')
+// 再从叶子上摘掉 → 祖先立刻灭（不残留上一次那份）
+leafOfA1.tags = []
+renderer.sync(graph)
+await new Promise((r) => setTimeout(r, 50))
+styleCheck('叶子摘掉后祖先的红点随之熄灭（不残留）', cy.$('#A1').hasClass('tagged'), false)
+// 挂回来，供下面的徽标 / 命中判定继续用（亮的就是 A1）
+leafOfA1.tags = ['tag:demo']
+renderer.sync(graph)
+await new Promise((r) => setTimeout(r, 50))
+styleCheck('挂回来又亮（没有"记住上一次"的缓存）', cy.$('#A1').hasClass('tagged'), true)
 /**
  * 红点徽标：红点本体由 DOM 按钮画，渲染器只负责给出「哪些可见模块亮了、画在哪」。
  * 曾经用节点的 `background-image` 位图，DPR≠1 的屏幕上会消失，别再改回去（见 palette.ts）。

@@ -10,11 +10,12 @@ import {
   TAG_DOT_SIZE,
 } from './palette'
 import { hitTestNode, measureBoxSize, measureGroupSize } from './labels'
-import { buildHierarchy, tabVisibleIds, type Hierarchy, type HierarchyNode } from './hierarchy'
+import { buildHierarchy, tabContextIds, tabVisibleIds, type Hierarchy, type HierarchyNode } from './hierarchy'
 import { packVisible } from './pack'
 import { runOrderedLayout } from './ordered'
 import { ignoredPositionIds } from './positions'
 import { NODE_TYPE_LABELS, type ArrowPort, type Graph, type NodeType } from '../lib/types'
+import { tagDisplayOf } from '../lib/tagEdit'
 import type { TopicVisibility } from '../lib/topics'
 
 /** 呼吸周期（毫秒）与幅度：与 index.css 里光晕的 3.2s 同周期，幅度 5%（看得出来，又不跳） */
@@ -123,6 +124,11 @@ export class GraphRenderer {
   private handlers: RendererHandlers
   /** 标签页焦点：null = 主图；否则是某个模块的 id（构造后不变） */
   readonly focusId: string | null
+  /**
+   * 标签口径（构造后不变）：`true` = 有子图的模块用**当前子树叶子并集**（画布页，与属性面板同一份）；
+   * `false` = 照读数据里那份（物理链页：它的块标签是生成物烘好的并集，见 `lib/tagEdit.ts` 的 `tagDisplayOf`）。
+   */
+  readonly tagUnion: boolean
   private pulseFrame: number | null = null
   private pulseNodeId: string | null = null
   private pulseStart = 0
@@ -185,9 +191,11 @@ export class GraphRenderer {
   /** 红点上的 pointerdown 守卫（destroy 时解绑） */
   private tagGuardHandler: ((event: PointerEvent) => void) | null = null
 
-  constructor(handlers: RendererHandlers, options: { focusId?: string | null } = {}) {
+  constructor(handlers: RendererHandlers, options: { focusId?: string | null; tagUnion?: boolean } = {}) {
     this.handlers = handlers
     this.focusId = options.focusId ?? null
+    // 缺省按并集算：画布页是主场景，链页显式传 false 照读生成物
+    this.tagUnion = options.tagUnion ?? true
   }
 
   mount(container: HTMLElement) {
@@ -279,7 +287,16 @@ export class GraphRenderer {
   private activeTagsOf(nodeId: string): string[] {
     if (!this.activeTagIds.length) return []
     const node = this.cy?.getElementById(nodeId)
-    if (!node || !node.length || node.isParent()) return []
+    if (!node || !node.length) return []
+    /**
+     * **装饰容器不参与标签**：画布页的大框（层带 / `ic:g-*`）是 `type: 'group'` 的装饰，
+     * 它们不参与关系，也不参与标签（`check-canvas` 里有这条断言）。
+     *
+     * 判据是**类型**而不是"是不是父节点"——物理链页的块（`type: 'process'`）同样是父节点
+     * （成员挂在它下面），但它是天体物理过程本身：用户口径 2026-09-30——选中一个参数要能
+     * 高亮"有这个标签的产物**或者**天体物理过程"，一级只有块，挡住父节点就等于一级永远不亮。
+     */
+    if (node.data('type') === 'group') return []
     const tagIds = (node.data('tagIds') as string[] | undefined) ?? []
     const active = new Set(this.activeTagIds)
     return tagIds.filter((tagId) => active.has(tagId))
@@ -324,6 +341,11 @@ export class GraphRenderer {
     cy.nodes().forEach((node) => {
       if (!node.visible() || node.isParent()) return
       if (Number(node.data('childCount')) <= 0) return
+      /**
+       * 「层」（`enterable: false`）不挂光晕与粒子：这些动效在这一页就是"双击还能进去"的信号，
+       * 而层横切各块、没有自己的子图（L1 的成员是头文件，压根不在图上，见 `block.enterable`）。
+       */
+      if (node.data('enterable') === false) return
       const box = node.renderedBoundingBox({ includeLabels: false, includeOverlays: false })
       if (![box.x1, box.y1, box.w, box.h].every((value) => Number.isFinite(value))) return
       marks.push({ nodeId: node.id(), x: box.x1, y: box.y1, w: box.w, h: box.h })
@@ -512,8 +534,11 @@ export class GraphRenderer {
 
   /**
    * 把可见性幂等地落到元素上：先全部还原，再按可见集隐藏。
-   * 可见集 = 焦点子节点 + 装饰框后代（递归），再与 compound 约束求交
-   * （父不可见则子不可见——话题过滤把大框关掉时会命中这条）。
+   * 可见集 = 焦点子节点 + 装饰框后代（递归）+ 焦点声明的**对外输入**（灰显上下文），
+   * 再与 compound 约束求交（父不可见则子不可见——话题过滤把大框关掉时会命中这条）。
+   *
+   * 对外输入是这条交集的**唯一豁免**：它们的真实父级是别的块（在本标签页里被藏了），
+   * 若照规矩级联下去它们会跟着消失——那样"这一块读了块外什么"就又看不见了。
    */
   private applyVisibility(): Set<string> {
     const cy = this.cy
@@ -521,14 +546,16 @@ export class GraphRenderer {
     if (!cy || !hierarchy) return new Set()
 
     const visible = tabVisibleIds(hierarchy, this.focusId)
+    const contextIds = tabContextIds(hierarchy, this.focusId)
     const filter = this.topicFilter
 
     const hidden = new Set<string>()
     cy.nodes().forEach((node) => {
       if (!visible.has(node.id())) hidden.add(node.id())
     })
-    // compound 硬约束：沿 cy 父链补一刀，父被隐藏的子节点一起藏
+    // compound 硬约束：沿 cy 父链补一刀，父被隐藏的子节点一起藏（对外输入豁免，见上）
     cy.nodes().forEach((node) => {
+      if (contextIds.has(node.id())) return
       let cursor = this.parentIdOf(node as NodeSingular)
       while (cursor) {
         if (hidden.has(cursor)) {
@@ -544,12 +571,19 @@ export class GraphRenderer {
     cy.batch(() => {
       cy.nodes().forEach((node) => {
         node.removeStyle('display')
+        /**
+         * 灰显的对外输入：类名幂等切换（换标签页时自然生效）。
+         * 它们与别的节点共用同一套元素——**不复制节点**，所以主图、检索、属性页看到的都是同一个对象。
+         */
+        node.toggleClass('context', contextIds.has(node.id()))
         if (hidden.has(node.id())) node.style('display', 'none')
       })
       cy.edges().forEach((edge) => {
         edge.removeStyle('display')
         const source = edge.data('source') as string
         const target = edge.data('target') as string
+        /** 从对外输入指进本块的那条依赖：本块子图里它是"外部来的"，画细一点（样式表 `.context-edge`） */
+        edge.toggleClass('context-edge', contextIds.has(source) || contextIds.has(target))
         // 端点任一不可见时 cytoscape 本来就不会画这条边；这里只处理话题过滤
         if (filter && (!filter.members.has(source) || !filter.members.has(target))) {
           edge.style('display', 'none')
@@ -589,6 +623,8 @@ export class GraphRenderer {
       id: node.id,
       parent: node.parent || null,
       frame: node.type === 'group',
+      /** 块声明的对外输入：进它的标签页时这些节点额外显形并灰显（物理链的块子图用它） */
+      contexts: node.contexts,
     }))
     this.rebuildHierarchy()
     this.groupIds = new Set(graph.nodes.filter((node) => node.type === 'group').map((node) => node.id))
@@ -647,6 +683,14 @@ export class GraphRenderer {
          * 大框的最小尺寸也一并算，避免空框塌成一条线。
          */
         const size = isGroup ? measureGroupSize(node.label) : measureBoxSize(node.label)
+        /**
+         * 红点 / 命中用的标签：与属性面板取的是**同一份口径**（`tagDisplayOf`）——
+         * 有子图的模块拿的是**当前子树叶子并集**，于是「在叶子上勾一个参数」时它的祖先立刻亮红点，
+         * 叶子删光就整片灭掉。容器不参与标签，一律不给（装饰容器 MUST NOT 显示红点）。
+         * `tagUnion === false`（物理链页）时照读数据里那份——那里的块标签是生成物烘好的并集。
+         */
+        const display = this.tagUnion ? tagDisplayOf(graph.nodes, node) : null
+        const tagIds = isGroup ? [] : [...(display ? display.tags : node.tags)]
         const data = {
           id: node.id,
           label: node.label,
@@ -654,10 +698,15 @@ export class GraphRenderer {
           typeLabel: NODE_TYPE_LABELS[node.type as NodeType] || node.type,
           summary: node.summary,
           refCount: node.refs.length,
-          tagCount: node.tags.length,
+          tagCount: tagIds.length,
           /** 全局标签 id：红点标记与命中都以此为准（勾选集合在渲染器里） */
-          tagIds: [...node.tags],
+          tagIds,
           childCount,
+          /**
+           * 能不能进去：`enterable !== false`。块以外的节点不带这个字段（＝可进入），
+           * 判据只有一处（生成物里的 `block.enterable`），画布不自己重算连通性。
+           */
+          enterable: node.enterable !== false,
           branchLabel: `${node.label} · ${childCount}`,
           boxW: size.width,
           boxH: size.height,

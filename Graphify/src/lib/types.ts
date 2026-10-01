@@ -29,6 +29,12 @@ export type NodeType =
   | 'spectrum'
   | 'function'
   | 'engineering'
+  /**
+   * 物理链的**块**（一级那 12 个块 = 10 个天体物理过程 + 2 个层）：`type = 'process'` 的**普通**节点，
+   * 不是容器——块的成员挂在它的 `parent` 下，只在块自己的子图里出现。
+   * 与 `method`（"函数/过程"，代码侧的一个函数）区分开：这里是"天体物理上的一站"。
+   */
+  | 'process'
   /** 大框：装饰容器（compound 父节点），子节点直接画在框里。只作分组，不参与语义 */
   | 'group'
 
@@ -179,6 +185,28 @@ export interface GraphNode {
   position: NodePosition | null
   createdAt: string
   updatedAt: string
+  /**
+   * **代码阶段号**（如 `S14`），只由生成物写入、界面只读：**已降级为普通属性，不再决定分层**
+   * （一级怎么划分看生成物里的 `blocks`，同一个物理过程常被拆在好几个代码阶段里）。
+   * 属性页拿它回答"这个量算在哪段代码里"；驱动量 / 外部量不属于任何阶段 → 空串。
+   */
+  stage?: string
+  /** 块节点（`type: 'process'`）上那份"成员涉及哪几段代码"的并集（量各自的在 `stage` 上） */
+  stages?: string[]
+  /**
+   * **对外输入（灰显的上下文节点）**：块节点上列出"块外指进来"的量 id。
+   * 进这个块的子图时，这些量会**额外显形并灰显**——它们是**别的块的成员本人**（同一个 id、同一个 `parent`），
+   * 不是复制出来的节点，所以主图里同一个量仍然只有一个；`parent` 不变，层级、层级条、
+   * 「进入子图（N 个子节点）」计数都不受它影响，只有可见集与样式读它（见 `graph/hierarchy.ts`）。
+   */
+  contexts?: string[]
+  /**
+   * 块节点是否可进入子图。`false` = 「层」（L0 常数与网格层 / L1 共享内核层：横切各块，
+   * 没有一条属于自己的主序流，L1 的成员还是头文件、根本不在图上）：
+   * 画布不挂"可进入"的信号（光晕 / 呼吸 / 双击进入），属性页也不给「进入子图 ↗」。
+   * 其它节点不写这个字段（按可进入处理）。
+   */
+  enterable?: boolean
 }
 
 export interface GraphEdge {
@@ -377,7 +405,8 @@ export const NODE_TYPE_ORDER: NodeType[] = [
   'result',
   'question',
   'tool',
-  // 物理链专用：图例里排在工程视角那批之后，先物理后工程
+  // 物理链专用：图例里排在工程视角那批之后，先物理后工程（块排最前——它是一级的那个东西）
+  'process',
   'quantity',
   'spectrum',
   'function',
@@ -397,6 +426,7 @@ export const NODE_TYPE_LABELS: Record<NodeType, string> = {
   result: '结论',
   question: '问题',
   tool: '工具',
+  process: '天体物理过程',
   quantity: '物理量',
   spectrum: '功率谱',
   function: '函数关系',
@@ -424,6 +454,11 @@ export const NODE_TYPE_COLORS: Record<NodeType, string> = {
   question: '#D97706',
   tool: '#DB2777',
   // 物理链：物理量（琥珀）/ 功率谱（品红）/ 函数关系（橙）/ 工程与装配（中性灰，表示"不属于物理链"）
+  /**
+   * 块借**容器墨绿**（与 `group` 同色）：两者都是"框住一批东西"的角色，且永不共处一张图——
+   * 画布那张图没有 `process` 节点，物理链这张图没有 `group` 节点，图例里不会出现两个同色的种类。
+   */
+  process: '#0F766E',
   quantity: '#B45309',
   spectrum: '#C026D3',
   function: '#EA580C',

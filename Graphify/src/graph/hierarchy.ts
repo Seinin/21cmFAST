@@ -18,6 +18,14 @@ export interface HierarchyNode {
   parent: string | null
   /** 是否装饰容器（大框）：true 时子节点在父视图内联渲染 */
   frame: boolean
+  /**
+   * **对外输入（灰显的上下文节点）id**：只在**以本节点为焦点的标签页**里额外显形
+   * （物理链的块子图用它把"这一块的成员读了块外哪个量"摆在眼前）。
+   *
+   * 这些 id 指向的仍然是**原来那个节点**（同一个 id、同一个 `parent`）：这里只改**可见集**，
+   * 不动 `parentOf` —— 层级、层级条、子节点计数都不受影响，也不会出现"同一个量两个身份"。
+   */
+  contexts?: readonly string[]
 }
 
 export interface Hierarchy {
@@ -33,6 +41,8 @@ export interface Hierarchy {
   depthOf: Map<string, number>
   /** 装饰容器 id 集合 */
   frameIds: Set<string>
+  /** 各节点声明的对外输入（只列真实存在、且不是自己的那些） */
+  contextsOf: Map<string, string[]>
 }
 
 /**
@@ -91,14 +101,25 @@ export function buildHierarchy(
 
   const frameIds = new Set(nodes.filter((node) => node.frame).map((node) => node.id))
 
-  return { ids, parentOf, childrenOf, roots, depthOf, frameIds }
+  /** 对外输入：指向不存在的节点（或指自己）一律丢掉——它们进不了可见集，留着只会让样式表空转 */
+  const contextsOf = new Map<string, string[]>()
+  nodes.forEach((node) => {
+    const list = [...new Set(node.contexts ?? [])].filter((id) => id !== node.id && known.has(id))
+    if (list.length) contextsOf.set(node.id, list)
+  })
+
+  return { ids, parentOf, childrenOf, roots, depthOf, frameIds, contextsOf }
 }
 
 /**
- * 标签页可见集：焦点的直系子节点 + 其中装饰容器的后代（递归）。
+ * 标签页可见集：焦点的直系子节点 + 其中装饰容器的后代（递归）+ 焦点声明的**对外输入**。
  *
  * `focusId` 为 null 时是主图：顶层节点全部可见（顶层里的装饰容器同样内联展开）。
  * 模块的子节点不会出现在这里——它们属于模块自己的标签页。
+ *
+ * **对外输入**（`contextsOf`）是第三种来源：它们是**别的节点的子节点**，不该按层级出现在这里，
+ * 但焦点（物理链的块）声明了"我的成员读它"，于是只在这个标签页里**额外显形**（渲染器把它们灰显）。
+ * 它们**不再往下钻**：它们的子节点属于它们自己的标签页。
  */
 export function tabVisibleIds(hierarchy: Hierarchy, focusId: string | null): Set<string> {
   const visible = new Set<string>()
@@ -112,5 +133,19 @@ export function tabVisibleIds(hierarchy: Hierarchy, focusId: string | null): Set
       if (!visible.has(child)) queue.push(child)
     })
   }
+  if (focusId !== null) {
+    for (const id of hierarchy.contextsOf.get(focusId) ?? []) visible.add(id)
+  }
   return visible
+}
+
+/**
+ * 本标签页里**属于别人**的节点：焦点声明的对外输入（灰显上下文）。
+ *
+ * 渲染器拿它做两件事：给这些节点挂只读灰显样式；把它们的**真实父级被藏掉**这件事豁免掉
+ * （compound 级联隐藏原本会把它们一起藏掉——它们的父节点是别的块，不在本标签页里）。
+ */
+export function tabContextIds(hierarchy: Hierarchy, focusId: string | null): Set<string> {
+  if (focusId === null) return new Set()
+  return new Set(hierarchy.contextsOf.get(focusId) ?? [])
 }
