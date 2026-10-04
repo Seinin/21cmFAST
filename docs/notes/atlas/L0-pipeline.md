@@ -147,7 +147,7 @@ for iz, z in enumerate(all_redshifts):           # iz = 该红移在 all_redshif
         halobox=this_halobox,
         photon_nonconservation_data=photon_nonconservation_data)
 
-    if prev is not None:                             # 清理"上一快照"（本轮这份留到下一轮才清）
+    if prev is not None:                             # 清理"上一快照"（当前这份留到下一轮才清）
         if HII_DIM > 1:
             prev.perturbed_field.purge()
         for hbox in hbox_arr:                        # 累积晕盒推进到下一快照（仅拉格朗日源且要落盘时）
@@ -168,7 +168,7 @@ for iz, z in enumerate(all_redshifts):           # iz = 该红移在 all_redshif
 # 准备：同上（备料照原样参数走一遍；initial_conditions 可由用户注入）
 # 循环：共用逐红移循环——这条不需要 iz，直接丢掉
 for _, coeval in _redshift_loop_generator(all_redshifts=all_redshifts, ...):
-    # 收尾：逐个红移交出，同时告诉调用方"这是不是用户点名的红移"
+    # 收尾：逐个红移交出，同时告诉调用方"这是不是选定的红移"
     yield coeval, coeval.redshift in out_redshifts      # → P11 演化快照
 ```
 
@@ -234,7 +234,7 @@ for iz, coeval in _redshift_loop_generator(
 | 备料实参 | `all_redshifts` = 推进用的全部红移；`initial_conditions` 可注入 | `all_redshifts=inputs.node_redshifts`；`initial_conditions` 可注入 | `all_redshifts=inputs_one_cell.node_redshifts`；`initial_conditions=None`（强制自算）；`write=CacheConfig.off()`；另传 `overdensity_z0` |
 | 循环实参 | `all_redshifts=all_redshifts`；起点快照按断点重建 | 同一个循环，但由光锥消费者调用；起点按光锥断点续算 | `all_redshifts=inputs_one_cell.node_redshifts`；`write=CacheConfig.off()`；`cleanup=True` |
 | 循环中的额外动作 | 无 | 逐红移取几何采样点写进光锥；循环结束后可选两项视线修正 | 无 |
-| 收尾动作 | 逐红移交出 `(盒, 是否用户点名)` | 交出光锥对象（另含按红移的均值） | 逐量写 `quantities[q][iz] = np.mean(...)` |
+| 收尾动作 | 逐红移交出 `(盒, 是否选定)` | 交出光锥对象（另含按红移的均值） | 逐量写 `quantities[q][iz] = np.mean(...)` |
 | 产出 | [P11 演化快照](#p11-演化快照) | [P12 光锥](#p12-光锥) | [P13 全局演化历史](#p13-全局演化历史) |
 
 三条都是编排：**物理都在 [E4 单场直算](#e4-单场直算) 的九个单场入口里**，本节只出现"谁在什么顺序上调用谁"。这条对照里出现的新符号名，是 [CONVENTIONS](CONVENTIONS.md) §3.3 对该节**显式枚举**的例外（其余正文仍按原纯度要求）。

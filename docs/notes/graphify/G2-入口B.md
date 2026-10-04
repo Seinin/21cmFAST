@@ -64,7 +64,7 @@
 
 #### E1 ⑤ yield 过滤 → Coeval 列表
 
-- **作用与意义**：只把用户点名要的那几个红移交出去（其余红移照算，但不进返回值），于是 `run_coeval` 得到的是一个 Coeval 列表。
+- **作用与意义**：只把选定的那几个红移交出去（其余红移照算，但不进返回值），于是 `run_coeval` 得到的是一个 Coeval 列表。
 - **对应子过程**：[S02.4 快照组装](../atlas/L2-subprocesses.md#s024-快照组装)（单元 [S02.4.1 generate_coeval](../atlas/L3-units.md#s0241-generate_coeval)）
 - **输入 / 产出**：输入逐轮快照；产出 [P11 演化快照](../atlas/L0-pipeline.md#p11-演化快照) 列表。
 - **关键位置**：`drivers/coeval.py` 的 `generate_coeval` 收尾处 `yield coeval, coeval.redshift in out_redshifts`。
@@ -275,7 +275,7 @@
 | E3 ⑥ 逐红移均值 | 同 E3 ② 的十三项 + `USE_TS_FLUCT`、`F_ESC10`、`F_STAR10`、`HII_EFF_FACTOR`、`POP2_ION` | 入公式 / 开关 | 对应标签 | 已注册 |
 | E3 ⑦ return | （无） | — | — | — |
 
-> 待注册的派生开关（`has_discrete_halos` / `lagrangian_source_grid`）与 `CacheConfig` 见 [G1 §五 待注册参数清单](G1-主图.md#待注册参数清单本轮只列不改)。
+> 待注册的派生开关（`has_discrete_halos` / `lagrangian_source_grid`）与 `CacheConfig` 见 [G1 §五 待注册参数清单](G1-主图.md#待注册参数清单)。
 
 ## 六 节点与锚点对照
 

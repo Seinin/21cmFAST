@@ -484,7 +484,7 @@ $$
 r_{\rm s}(M)\equiv q\,r_{\rm vir}(M),\qquad q\ \text{在两侧、所有质量上相同}\tag{A1}
 $$
 
-$q$ 是**无量纲、自相似**的几何陈述——"能冷却的气体塌到 $q\,R_{\rm vir}$"；而"共享绝对半径"在不同质量之间混用了不同的 $r/r_{\rm vir}$（因 $m_{\rm f}\ne m_{\rm c}$），这才是没有物理对应的地方。$q=0.1$ 恰为 Nebrin+23 的 $R_{\rm core}/R_{\rm vir}$（见 `docs/notes/FDM_nebrin_mcrit_plan.md`）。
+$q$ 是**无量纲、自相似**的几何陈述——"能冷却的气体塌到 $q\,R_{\rm vir}$"；而"共享绝对半径"在不同质量之间混用了不同的 $r/r_{\rm vir}$（因 $m_{\rm f}\ne m_{\rm c}$），这才是没有物理对应的地方。$q=0.1$ 恰为 Nebrin+23 的 $R_{\rm core}/R_{\rm vir}$（见 `docs/notes/FDM_nebrin_mcrit.md`）。
 
 #### 5.6.3 NFW 形状函数：$\gamma$ 消失
 
@@ -573,7 +573,7 @@ $$
 | V2 | **根的唯一性** | $\eta(M)\Phi(c(M),q)$ 在 $M$ 上单调 ⇒ 根唯一（Hill 时代自动成立，A′ 下必须实测） |
 | V3 | 与旧链（§5.1–§5.5）对照 | 给 $R^{\rm A'}/R^{\rm old}(m_{22},z)$；预期 >1 |
 | V4 | $q$ 的带 | $R$ 对 $q\in[0.05,0.15]$ 的响应；§12 那个 $5.2\times$ 是否被继承或缩小 |
-| V5 | 与方案 B 对照 | `docs/notes/FDM_nebrin_mcrit_plan.md` P5-B1 |
+| V5 | 与方案 B 对照 | `docs/notes/FDM_nebrin_mcrit.md` P5-B1 |
 | V6 | 回归 | `FDM=False` 逐位不变 |
 
 #### 5.6.11 接口口径
@@ -582,7 +582,7 @@ $$
 | :--- | :--- |
 | `MCRIT_FDM_P`、`MCRIT_FDM_GAMMA` | **移出参数表**（或仅作日志自检输出） |
 | 新增 `MCRIT_FDM_Q` | 默认 `0.1`（Nebrin 的 $R_{\rm core}/R_{\rm vir}$），先验 $[0.05,0.15]$ |
-| `fdm_mcrit_solve()` | 仍为 1D 求根、仍为 $(z,m_{22})$ 标量 ⇒ 缓存策略不变（`FDM_code_migration_plan.md` P3） |
+| `fdm_mcrit_solve()` | 仍为 1D 求根、仍为 $(z,m_{22})$ 标量 ⇒ 缓存策略不变（`FDM_code_migration.md` P3） |
 | 参数转储 | 增加 $q$、$\gamma_{\rm diag}$、$\eta$、$R$（`debugging.c`） |
 | 不动 | 原子通道 $\min$ 封顶（式 23）、$f_{\rm LW}$、$f_{v_{\rm cb}}$、`FDM=False` 路径 |
 
@@ -731,7 +731,7 @@ $$
 
 ### 9.2 塌缩物理被外包给校准数
 
-$\rho_{\rm crit}$ 不可信的根源是它隐含要求你**自己算**"塌缩后气体能达到多密"（3D 塌缩 + 非平衡化学）。乘性路由不算它：把这段物理交给右边的 $m_{\rm crit}^{\rm CDM}$（Fialkov 的 3D 塌缩模拟标定）。**只负责搬运差异，不负责重建绝对值。**
+$\rho_{\rm crit}$ 不可信的根源是它隐含要求**自行计算**"塌缩后气体能达到多密"（3D 塌缩 + 非平衡化学）。乘性路由不算它：把这段物理交给右边的 $m_{\rm crit}^{\rm CDM}$（Fialkov 的 3D 塌缩模拟标定）。**只负责搬运差异，不负责重建绝对值。**
 
 ### 9.3 唯一新增的输入是几何比
 

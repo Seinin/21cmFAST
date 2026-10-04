@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""清理 docs/FDM.md 中已失去价值的内容。
+"""清理 docs/notes/FDM.md 中已失去价值的内容。
 
 删除依据
 --------
@@ -24,7 +24,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DOC = ROOT / "docs" / "FDM.md"
+DOC = ROOT / "docs" / "notes" / "FDM.md"
 
 NEW_PART5 = '''# 第五篇　备选方案存档（未实施）
 

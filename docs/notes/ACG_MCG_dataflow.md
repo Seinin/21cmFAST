@@ -16,7 +16,7 @@
 | §6 LW 反馈闭环              | §4.3（$M_{\rm crit}$ 模型）                          | 跨步负反馈                                         |
 | §7 两模式对比               | §3（Path A vs Path B）                                 | Eulerian vs Lagrangian                             |
 
-> **建议阅读路径**：先读主手册 §1–§3（两类星系、两条计算路径、核心公式 $N_{\rm ion}=\int dn_c\,M f_\star f_{\rm esc}N_\gamma$），再读 §4–§6 看积分边界与标度关系；然后回到本文档，按 §1 → §2 → §3 → §4 走一遍 `ComputeIonizedBox`。**如果你在代码里看到 `calculate_fcoll_grid` 却不知道它属于哪——答案在本文档 §2 阶段 B（壳层循环内）与 §3（定位小节）；它在主手册里对应 §3 的 Path A（"用积分还是抽样"这个决策的代码落点）。**
+> **建议阅读路径**：先读主手册 §1–§3（两类星系、两条计算路径、核心公式 $N_{\rm ion}=\int dn_c\,M f_\star f_{\rm esc}N_\gamma$），再读 §4–§6 看积分边界与标度关系；然后回到本文档，按 §1 → §2 → §3 → §4 走一遍 `ComputeIonizedBox`。**如果在代码里看到 `calculate_fcoll_grid` 却不知道它属于哪——答案在本文档 §2 阶段 B（壳层循环内）与 §3（定位小节）；它在主手册里对应 §3 的 Path A（"用积分还是抽样"这个决策的代码落点）。**
 
 ---
 
@@ -56,7 +56,7 @@
 步骤 6: (总是执行)
   compute_ionization_field()
     → lib.ComputeIonizedBox        — 核心：电离历史推进
-       内部骨架（先给你一张全景，详见 §2）：
+       内部骨架（先给一张全景，详见 §2）：
          阶段 A: 预备 — 拷贝/滤波输入场（§2.1）
          阶段 B: 壳层循环 — 对每个滤波半径 R（从大到小）：
            ├─ copy_filter_transform(R)  平滑各场到尺度 R
@@ -204,7 +204,7 @@ $$
 
 ### 3.1 Eulerian 与 Lagrangian：同一个 $f_{\rm coll}$，两种"源"模型（物理总览）
 
-先回答最根本的问题：**为什么同一件事（算光子预算）要分两条路？** 因为"一个密度为 $\delta_R$ 的区域能产生多少电离光子"这个量，本质上取决于你如何描述**星系源**——是当作连续场，还是当作离散的晕目录。**注意：这两条路不是独立开关，而是 `SOURCE_MODEL` 的派生属性**（`IonisationBox.c:152-153`）——选 `0/1` 自动进入 Eulerian 族，选 `2/3/4` 自动进入 Lagrangian 族，**没有"单独切换 Eulerian/Lagrangian"的选项**，族随模式而定：
+先回答最根本的问题：**为什么同一件事（算光子预算）要分两条路？** 因为"一个密度为 $\delta_R$ 的区域能产生多少电离光子"这个量，本质上取决于如何描述**星系源**——是当作连续场，还是当作离散的晕目录。**注意：这两条路不是独立开关，而是 `SOURCE_MODEL` 的派生属性**（`IonisationBox.c:152-153`）——选 `0/1` 自动进入 Eulerian 族，选 `2/3/4` 自动进入 Lagrangian 族，**没有"单独切换 Eulerian/Lagrangian"的选项**，族随模式而定：
 
 ```c
 consts->mass_dep_zeta        = matter_options_global->SOURCE_MODEL > 0;

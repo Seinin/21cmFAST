@@ -80,3 +80,20 @@ cdm_samples/
 scripts/test.py
 train/
 traintest/
+
+# --- 本地工作区（编辑器/代理的会话状态，不随仓库分发）---
+.codebuddy/
+.papers-extract/
+.migrate_chain.py
+attic/
+
+# --- 外部工具项目（各自独立成库，不随本仓分发）---
+docling-graph/
+math-mcp/
+
+# --- 本地参考正文（数密度按需自备，不入库）---
+docs/论文/
+
+# --- 写前备份与生成的大体积动画 ---
+*.bak-*
+scripts/anim_interp_tables.gif

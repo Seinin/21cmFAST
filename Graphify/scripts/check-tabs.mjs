@@ -1,6 +1,6 @@
 /**
  * 标签页模型自检：把「逐模块进入」这套交互里**能在 Node 下断言**的部分固化下来
- * （见 openspec 变更 `graphify-tabbed-subgraphs` 的 4.2 / 5.8）。检查的事：
+ * 。检查的事：
  *
  *   1. 标签页状态机（`src/state/graphStore.ts`）：进入的幂等、激活页切换、选中态按页隔离、
  *      关闭激活页后激活左邻页、**关闭时清掉该页的选中态 stash**（曾经被 activateTab 撤销，

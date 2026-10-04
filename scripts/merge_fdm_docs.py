@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""将 docs/FDM_*.md 整合为单册 docs/FDM.md。
+"""将 docs/notes/FDM_*.md 整合为单册 docs/notes/FDM.md。
 
 策略：保留全部正文（含公式、数值表、代码索引），仅做
   1) 标题层级下沉（原 H1 -> H2，H2 -> H3 …），代码块内的 # 不动
@@ -9,7 +9,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS = ROOT / "docs"
+DOCS = ROOT / "docs" / "notes"
 OUT = DOCS / "FDM.md"
 
 # (源文件, 篇章标题, 状态标注)

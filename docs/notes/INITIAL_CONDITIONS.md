@@ -465,7 +465,7 @@ free_rng_threads(r)  // 逐个 gsl_rng_free
 
 ## 7. 边界与坑
 
-1. **单格退化**：`DIM == HII_DIM == 1` 时 C 侧完全不执行（`single_field.py:65-87`）。若你以为"全局演化也算了初始条件"，其实是填了常数——密度只有 `hires_density` / `lowres_density` 会被 `initial_density` 覆盖，其余为 0。
+1. **单格退化**：`DIM == HII_DIM == 1` 时 C 侧完全不执行（`single_field.py:65-87`）。若误以为"全局演化也算了初始条件"，其实是填了常数——密度只有 `hires_density` / `lowres_density` 会被 `initial_density` 覆盖，其余为 0。
 2. **2LPT 会借用输出当工作区**：`compute_velocity_fields_2LPT` 把 `hires_v*_2LPT` 当 φ₁ 对角分量的暂存区（`:749-750` 注释）。所以**如果 2LPT 中途失败，这些数组里是中间量而不是结果**。
 3. **`initial_density` 的均值检查有个笔误**：`single_field.py:90` 写的是 `np.abs(initial_density.mean() > 1e-3)`，实际效果是"只有均值为**正**且大于 1e-3 才警告"，负均值不会提醒（原意应是 `abs(mean) > 1e-3`）。传入的应当是**密度对比**（零均值），不是绝对密度。
 4. **滤波只在 `DIM != HII_DIM` 时发生**：两个分支共用同一段代码，误把 `HII_DIM` 设成 `DIM` 不会报错，但会悄悄改变低分辨密度的物理含义（顶帽半径变成 1 格）。

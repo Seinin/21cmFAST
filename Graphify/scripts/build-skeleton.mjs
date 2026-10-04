@@ -36,7 +36,7 @@ function cleanHeading(text) {
 }
 
 /** 归一化：用于「H1 与文档标题重复」判定与降噪名单比对 */
-const norm = (text) => cleanHeading(text).toLowerCase().replace(/[\s\u3000·:：.、（）()《》"]/g, '')
+const norm = (text) => cleanHeading(text).toLowerCase().replace(/[\s\u3000·:：.、()《》"]/g, '')
 
 /** 取章节正文的首个有效段落作为摘要（跳过代码块、列表、公式行） */
 function sectionSummary(lines, startLine, endLine) {

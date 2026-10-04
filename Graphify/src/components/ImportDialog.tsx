@@ -97,7 +97,7 @@ export function ImportDialog({ open, onOpenChange, docs, onImported }: ImportDia
     ].join('\n')
 
     navigator.clipboard.writeText(prompt).then(
-      () => toast.success('已复制 LLM 建图指令', { description: '粘贴给你的模型即可让它按契约产出草案' }),
+      () => toast.success('已复制 LLM 建图指令', { description: '粘贴到目标模型即可按契约产出草案' }),
       () => toast.error('复制失败，请检查浏览器剪贴板权限'),
     )
   }

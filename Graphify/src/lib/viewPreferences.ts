@@ -49,3 +49,42 @@ export function writeStringArrayPreference(key: string, values: readonly string[
     // 同上：存储不可用时不影响本次会话
   }
 }
+
+/** 跨红移回流是否显现：本机记住的开关偏好 */
+export const SHOW_CROSS_REDSHIFT_FEEDBACK_KEY = 'graphify.showCrossRedshiftFeedback.v1'
+
+/**
+ * 读一个布尔偏好。
+ *
+ * 与字符串数组那份同一套口径：缺键、非法值（不是 `true` / `false`）、存储被禁用
+ * 一律回退到 `fallback`，不抛错；`window` 不存在（自检脚本跑在 Node 里）同样直接给 `fallback`。
+ */
+export function readBooleanPreference(key: string, fallback = false): boolean {
+  if (typeof window === 'undefined') return fallback
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (raw !== 'true' && raw !== 'false') return fallback
+    return raw === 'true'
+  } catch {
+    // 隐私模式、存储被禁用：一律当作没存过
+    return fallback
+  }
+}
+
+/**
+ * 写一个布尔偏好。
+ * 与默认值相同就删键——留一个 `false` 在那儿只说明"曾经关过"，没有信息量。
+ * 写失败只影响「下次打开的记忆」，不影响本次会话，因此静默吞掉。
+ */
+export function writeBooleanPreference(key: string, value: boolean, fallback = false): void {
+  if (typeof window === 'undefined') return
+  try {
+    if (value === fallback) {
+      window.localStorage.removeItem(key)
+      return
+    }
+    window.localStorage.setItem(key, String(value))
+  } catch {
+    // 同上：存储不可用时不影响本次会话
+  }
+}

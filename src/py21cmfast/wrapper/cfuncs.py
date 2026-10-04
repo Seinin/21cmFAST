@@ -531,20 +531,6 @@ def get_delta_crit_nu(hmf_int_flag: int, sigma: float, growth: float):
     return lib.get_delta_crit(hmf_int_flag, sigma, growth)
 
 
-def _validate_redshift_prev(redshift: float, redshift_prev: float | None) -> None:
-    """Validate the redshift ordering that the C side checks in `stoc_set_consts_z`.
-
-    Mirroring the check here keeps it visible: the C entries are hardened to report NaN
-    instead of crashing, so an illegal ordering would otherwise degrade into a silent NaN.
-    The condition matches the C code exactly (which ignores non-positive `redshift_prev`).
-    """
-    if redshift_prev is not None and redshift_prev > 0 and redshift_prev > redshift:
-        raise ValueError(
-            "redshift_prev (the descendant redshift) must not be greater than "
-            f"redshift (got redshift={redshift}, redshift_prev={redshift_prev})"
-        )
-
-
 @broadcast_params
 def evaluate_condition_integrals(
     inputs: InputParameters,
@@ -558,8 +544,6 @@ def evaluate_condition_integrals(
     has not been initialised, only `cond_array` is used,
     and the rest of the arguments are taken from when the table was initialised.
     """
-    _validate_redshift_prev(redshift, redshift_prev)
-
     cond_array = cond_array.astype("f8")
     n_halo = np.zeros_like(cond_array)
     m_coll = np.zeros_like(cond_array)
@@ -589,7 +573,6 @@ def integrate_chmf_interval(
     if lnm_lower.shape != lnm_upper.shape:
         raise ValueError("the shapes of the two mass-limit arrays must be equal")
     assert np.all(lnm_lower < lnm_upper)
-    _validate_redshift_prev(redshift, redshift_prev)
 
     out_prob = np.zeros((len(cond_values), len(lnm_lower)), dtype="f8")
     cond_values = cond_values.astype("f8")
@@ -624,8 +607,6 @@ def evaluate_inverse_table(
             "the shapes of the input arrays `cond_array` and `probabilities"
             " must be equal."
         )
-
-    _validate_redshift_prev(redshift, redshift_prev)
 
     if redshift_prev is None:
         redshift_prev = -1

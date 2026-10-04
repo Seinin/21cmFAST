@@ -1,11 +1,14 @@
 import type { StylesheetStyle } from 'cytoscape'
 import { ARROW_PORTS, NODE_TYPE_COLORS, type ArrowPort, type NodeType } from '../lib/types'
 import {
+  CONTEXT_EDGE_COLOR,
+  CONTEXT_NODE_COLOR,
   CONTRADICTS_COLOR,
   CROSS_LINK_COLOR,
   EDGE_COLOR,
   EDGE_LABEL_COLOR,
   EDGE_LABEL_OUTLINE_COLOR,
+  FEEDBACK_COLOR,
   GROUP_BACKGROUND_OPACITY,
   GROUP_COLOR,
   GROUP_TITLE_COLOR,
@@ -190,7 +193,7 @@ export function buildStylesheet(): Rule[] {
   ]
 
   /**
-   * 可进入子图的模块标记：名称后附「· 直系子节点数」，并加一圈柔和光晕。
+   * 可进入子图的模块标记：一圈柔和光晕 —— 标签就是模块名本身，**尾巴上不带数字**。
    *
    * 只挂在**模块**（非大框但有子节点）上——它的子节点不与它同屏，
    * 双击或属性页入口会在新标签页里打开。装饰容器（大框）不挂这个标记：
@@ -198,7 +201,7 @@ export function buildStylesheet(): Rule[] {
    *
    * **刻意不用虚线**：虚线在这张画布上已经被「条件/可选」占用（见 `node.conditional`），
    * 两处都用虚线会让「这一步是可选的」和「这里可以进入」变成同一个视觉信号。
-   * 数量由 GraphRenderer 写进 `branchLabel`，避免在样式里做算术。
+   * 文本仍走 `branchLabel`（`GraphRenderer` 写，等值于模块名），避免在样式里做算术。
    */
   const branchRules: Rule[] = [
     {
@@ -212,10 +215,10 @@ export function buildStylesheet(): Rule[] {
   ]
 
   /**
-   * 「层」（`blockKind = "layer"`：L0 常数与网格层 / L1 共享内核层）：横切各块，**不可进入**。
+   * 「层」（`blockKind = "layer"`：常数与网格）：**不可进入**。
    *
    * 与"过程块"的区别只落在一处：把 `.branch` 那圈光晕收掉——
-   * 在这一页光晕就是"双击还能进去"的信号，层没有可进的东西（L1 的成员是头文件），不该带这个信号。
+   * 在这一页光晕就是"双击还能进去"的信号，层没有可进的东西（它的成员是常数），不该带这个信号。
    *
    * **刻意不用虚线**：虚线已被「条件/可选」占用（见 `node.conditional` 与 `node.container` 的注释），
    * 同一个形状承担两种含义就没人分得清了。
@@ -241,11 +244,11 @@ export function buildStylesheet(): Rule[] {
     {
       selector: 'node.context',
       style: {
-        'background-color': '#64748B',
+        'background-color': CONTEXT_NODE_COLOR,
         'background-opacity': 0.06,
-        'border-color': '#94A3B8',
+        'border-color': CONTEXT_EDGE_COLOR,
         'border-opacity': 0.7,
-        color: '#64748B',
+        color: CONTEXT_NODE_COLOR,
         opacity: 0.72,
         // 压在成员之下：读的顺序是"这一块算什么"在前，"它读了什么"在后
         'z-index': 6,
@@ -254,11 +257,11 @@ export function buildStylesheet(): Rule[] {
     {
       selector: 'edge.context-edge',
       style: {
-        'line-color': '#94A3B8',
-        'target-arrow-color': '#94A3B8',
+        'line-color': CONTEXT_EDGE_COLOR,
+        'target-arrow-color': CONTEXT_EDGE_COLOR,
         'line-opacity': 0.55,
         width: 1.2,
-        color: '#94A3B8',
+        color: CONTEXT_EDGE_COLOR,
       } as Rule['style'],
     },
   ]
@@ -337,7 +340,7 @@ export function buildStylesheet(): Rule[] {
       /**
        * 大框选中态：**只加粗描边，不改填充**。
        * 填充强调（GROUP_EMPHASIS_OPACITY）会让整条层带泛青色——大片面积变色太扎眼，
-       * 用户明确不要这个特效；描边加粗已足够表达「它被选中了」。
+       * 不要这个特效；描边加粗已足够表达「它被选中了」。
        */
       selector: 'node.container:selected, node:parent:selected',
       style: {
@@ -453,17 +456,20 @@ export function buildStylesheet(): Rule[] {
       style: { 'line-style': 'dashed', width: 1.5 } as Rule['style'],
     },
     /**
-     * **跨层捷径**（物理链页）：一条真实的依赖，但它跳过了若干层（层差 >1）。
+     * **提供 / 数据流动**（物理链页）：一条真实的依赖，但它跳过了若干层（层差 >1）。
      *
      * 为什么不能删也不能藏：它是公式里实打实的依赖（`T_K → T_S` 就是 T_S 公式里的一项），
-     * 只是没落在分层用的那条最长路径上。画成**点线 + 弧线 + 一档自己的颜色**，一眼分清
-     * 「树脊（直线）」与「捷径（弧线）」——否则读者会以为树的层级画错了。
-     * 点线而不是虚线：虚线在这张画布上已经被「条件/可选」占用（见 `edge.conditional`）。
+     * 只是没落在分层用的那条最长路径上。画成**实线 + 弧线 + 一档自己的颜色**，一眼分清
+     * 「树脊（直线）」与「跳层那一档（弧线）」——否则读者会以为树的层级画错了。
+     *
+     * **线型用实线**：这张画布上虚线只有一个含义——条件 / 可选（见 `edge.conditional`），
+     * 而这一档讲的是"跳了几层"、不是"有时才有"，两者混用会让线型失去含义。区分靠**弧线与颜色**：
+     * 弧线说"绕过去了"，紫灰说"不是主序那一档"，线型不参与表达（大框与必然执行的流都还是实线）。
      */
     {
       selector: 'edge.cross-link',
       style: {
-        'line-style': 'dotted',
+        'line-style': 'solid',
         'line-color': CROSS_LINK_COLOR,
         'target-arrow-color': CROSS_LINK_COLOR,
         'curve-style': 'bezier',
@@ -471,6 +477,68 @@ export function buildStylesheet(): Rule[] {
         'control-point-step-size': 90,
         width: 1.3,
         'line-opacity': 0.75,
+      } as Rule['style'],
+    },
+    /**
+     * **跨红移回流**（物理链页）：下一轮指回上一轮，方向与自上而下的主序相反。
+     *
+     * 与「提供 / 数据流动」分属两种跨法（见 palette 里 `FEEDBACK_COLOR` 的说明），因此样式也另起一档，
+     * 三处都不与邻居共用：
+     *   · 颜色：品红（跳层那一档是紫灰、主序是灰、条件/可选还是灰）；
+     *   · 线型：**长划**虚线（虚线已被 `edge.conditional` 与 `relates_to` 占用、点线已被 `contradicts` 占用、
+     *     实线是主序与跳层那一档共用的底）；
+     *   · 箭头：显式画三角并放大一号 —— 方向靠箭头表达，不靠线型暗示。
+     * 弧线比跳层那一档鼓得更开：两端块之间通常还有一条正向接口边，两条要能分开看。
+     *
+     * 标签常显（其余边仍按悬停 / 选中 / 工具条开关显示）：回流就一两条，而它要读的正是两端的量名。
+     * 渲染器只在边带 `feedback` 类时命中本规则；"默认不画"由下面的 `feedback-off` 管。
+     *
+     * **`feedback-input` 是它在子图里的落点**（`fromNode → toNode`，物理链页按产物那条弧派生、在弧两端块
+     * 各派一条）：同一条关系在同一档样式下出现，进到块里一眼认得出是它。它与落点两端那些盒子是同一件事
+     * 的另两个视图面，因此**与一级那条弧同进同出**——开关关着时一起不画（见下面的关闭态规则）。
+     * 类名与主图那档分开，只为区分谁在一级、谁在子图。
+     *
+     * 这档 MUST NOT 被 `context-edge`（从对外输入指进本块的灰细样式）压过去：来源块那侧的落点正好
+     * 一端是灰显的对外输入，让弱化样式盖上来，同一条关系在一级与子图里就不像一件事了——
+     * 渲染器按 `!edge.hasClass('feedback-input')` 排除它。
+     */
+    {
+      selector: 'edge.feedback, edge.feedback-input',
+      style: {
+        'line-style': 'dashed',
+        'line-dash-pattern': [10, 5],
+        width: 2,
+        'line-color': FEEDBACK_COLOR,
+        'target-arrow-color': FEEDBACK_COLOR,
+        'target-arrow-shape': 'triangle',
+        'arrow-scale': 1.15,
+        'curve-style': 'bezier',
+        'control-point-step-size': 140,
+        'line-opacity': 0.95,
+        'text-opacity': 1,
+        color: FEEDBACK_COLOR,
+      } as Rule['style'],
+    },
+    /**
+     * **落点边在子图里鼓开一格**：它常常与**产物边同端点对、方向相反**——
+     * `Ṅ_ion → Q_HII`（这一步算 `Ṅ_ion` 要用 `Q_HII`）与落点 `Q_HII → Ṅ_ion`（上一快照的 `Q_HII`
+     * 被送了过来），网格化源项与电离场两张子图里各出现一对。
+     *
+     * 为什么不能靠上面那档的 `bezier` 自动错开：cytoscape 的错开只在**同一种 `curve-style`** 的
+     * 平行边之间生效。产物边走基础档的 `straight`（两框中心连线，方向可预读），落点边若是孤零零的
+     * 一条 bezier，控制点就落在两端中点、画出来还是直线——两条完全叠住，读成"这里只有一条关系"，
+     * 反向的那个箭头被盖掉。
+     *
+     * 所以落点边显式换成 `unbundled-bezier` 并给一个固定偏移（`bezier` 的控制点是算出来的只读值，
+     * 手动指定必须走这一档）：产物边照旧走直线，两条一弯一直分开。偏移量与一级那条弧同一量级
+     * （那里是 `control-point-step-size: 140`），落点两端通常就是两个相邻的盒子，鼓这么多足够分开。
+     */
+    {
+      selector: 'edge.feedback-input',
+      style: {
+        'curve-style': 'unbundled-bezier',
+        'control-point-distances': [80],
+        'control-point-weights': [0.5],
       } as Rule['style'],
     },
     /**
@@ -565,9 +633,9 @@ export function buildStylesheet(): Rule[] {
       style: { 'line-opacity': 0.22, 'text-opacity': 0.15 } as Rule['style'],
     },
     /**
-     * **接口边（`focusOnly`）：静息不画，悬浮它两端的块时才显现**（用户口径 2026-09-30）。
+     * **接口边（`focusOnly`）：静息不画，悬浮它两端的块时才显现**。
      *
-     * 一级只有 12 个块，块间那 21 条接口边若常显，画布会被箭头与量名糊满；
+     * 一级只有 11 个块，块间那 21 条接口边若常显，画布会被箭头与量名糊满；
      * 把它们压到 0、只留"指针停在某个块上"这一刻读取——读法变成
      * 「一个块 + 它的进出口」，与模块那套（`.highlighted` 放大 + 亮边）是同一个手势。
      *
@@ -582,6 +650,28 @@ export function buildStylesheet(): Rule[] {
     {
       selector: 'edge[?focusOnly].highlighted',
       style: { opacity: 1, 'line-opacity': 1, 'text-opacity': 1, events: 'yes' } as Rule['style'],
+    },
+    /**
+     * **跨红移回流 · 关闭态：整条不画**（默认关，开关在物理链页的浮层上）。
+     *
+     * 一条规则管住这件事的**全部视图面**，三样同进同出：
+     *   · `edge.feedback`：一级上那条块 → 块的弧；
+     *   · `edge.feedback-input`：它在弧两端块标签页里的落点（上一轮送出的量 → 这一步读它的量）；
+     *   · `node.feedback-context`：落点两端那些盒子——它们进这一块只因落在这条回流上。
+     * 分开列而不是合成一个类名：弧与落点画在不同层，另有各自的规则（`subgraphOf` 收口），
+     * 只有"关着就不画"这一条是共用的。
+     *
+     * 用 `display: none` 而不是 `opacity: 0`：后者元素仍在命中测试里（所以 `focusOnly` 那档还要补
+     * `events: 'no'`），而这里要的是**不占位**——不渲染、不入选、不遮挡下面的标签、不参与取景。
+     *
+     * ⚠ 位置：压在 `edge[?focusOnly]` **之后**、本段最末。cytoscape 是"后写的规则胜"，
+     * 上面任何针对 `edge` 与 `node` 的规则（线色、线宽、不透明度）都压不翻这一条。
+     * 与 `focusOnly` 那条不命中同一批边（回流边的 `focusOnly` 为假），排在一起的用意是
+     * 让两档"某类边默认不画"挨着，读的人不必翻上去比先后。
+     */
+    {
+      selector: 'edge.feedback.feedback-off, edge.feedback-input.feedback-off, node.feedback-context.feedback-off',
+      style: { display: 'none' } as unknown as Rule['style'],
     },
     /**
      * 标签隐藏档：标签已写进方框，因此**不再按重叠省略**（方框里的文字就是框的内容，
